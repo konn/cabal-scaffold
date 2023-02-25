@@ -36,7 +36,7 @@ import Network.HTTP.Client.Conduit (Response (..), newManager)
 import Network.HTTP.Conduit (http)
 import Options.Applicative qualified as Opt
 import Path
-import Path.IO (copyFile, createDirIfMissing, doesDirExist, doesFileExist, findExecutable, listDir, removeDirRecur, resolveDir', resolveFile')
+import Path.IO (AnyPath (makeRelativeToCurrentDir), copyFile, createDirIfMissing, doesDirExist, doesFileExist, findExecutable, listDir, removeDirRecur, resolveDir', resolveFile')
 import RIO
 import RIO.Directory qualified as RIOD
 import RIO.Orphans (HasResourceMap (..), ResourceMap, withResourceMap)
@@ -159,12 +159,15 @@ newProject :: ProjectOptions -> RIO App ()
 newProject ProjectOptions {..} = do
   dest <- resolveDir' $ T.unpack projectName
   makeSureEmpty dest
+  dir <- makeRelativeToCurrentDir dest
+  logInfo $ "Creating project to " <> fromString (fromRelDir dir)
   handleAny (\exc -> removeDirRecur dest >> throwIO exc) $ do
     createDirIfMissing True dest
     -- FIXME: use caching
     snap <-
       maybe (throwString "Snapshot resolution failed!") pure
         =<< resolveSnapshot Nothing Nothing resolver
+    logInfo $ "Using snapsthot: " <> displayShow snap
     let req = fromString $ freezeFileUrl snap
     rsp <- http req =<< newManager
     C.runConduit $
@@ -229,4 +232,4 @@ newProject ProjectOptions {..} = do
           T.writeFile
             (fromAbsFile $ dest </> [relfile|cabal.project|])
             "packages: *.cabal"
-        pure ()
+        logInfo "Project Created."
