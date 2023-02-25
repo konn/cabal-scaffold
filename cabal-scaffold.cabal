@@ -1,0 +1,82 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.35.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           cabal-scaffold
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/konn/cabal-scaffold#readme>
+homepage:       https://github.com/konn/cabal-scaffold#readme
+bug-reports:    https://github.com/konn/cabal-scaffold/issues
+author:         Hiromi Ishii
+maintainer:     konn.jinro_at_gmail.com
+copyright:      2023 (c) Hiromi Ishii
+license:        BSD-3-Clause
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/konn/cabal-scaffold
+
+library
+  exposed-modules:
+      Development.Scaffold.Cabal
+      Development.Scaffold.Cabal.Config
+      Development.Scaffold.Cabal.Constants
+      Development.Scaffold.Cabal.Snapshots
+      Development.Scaffold.Cabal.Template
+  other-modules:
+      Paths_cabal_scaffold
+  autogen-modules:
+      Paths_cabal_scaffold
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wunused-packages
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , base64-bytestring
+    , bytestring
+    , conduit
+    , exceptions
+    , generic-lens
+    , http-conduit
+    , http-types
+    , lens
+    , lens-aeson
+    , mustache
+    , optparse-applicative
+    , path
+    , path-io
+    , project-template
+    , regex-applicative-text
+    , rio
+    , rio-orphans
+    , streaming
+    , streaming-bytestring
+    , text
+    , time
+    , transformers
+    , unordered-containers
+    , yaml
+  default-language: Haskell2010
+
+executable cabal-scaffold
+  main-is: Main.hs
+  other-modules:
+      Paths_cabal_scaffold
+  autogen-modules:
+      Paths_cabal_scaffold
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wunused-packages -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , cabal-scaffold
+    , optparse-applicative
+  default-language: Haskell2010

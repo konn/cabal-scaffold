@@ -1,0 +1,67 @@
+name: cabal-scaffold
+version: '0.1.0.0'
+description: Please see the README on GitHub at <https://github.com/konn/cabal-scaffold#readme>
+author: Hiromi Ishii
+maintainer: konn.jinro_at_gmail.com
+copyright: 2023 (c) Hiromi Ishii
+license: BSD-3-Clause
+github: konn/cabal-scaffold
+extra-source-files:
+- README.md
+- CHANGELOG.md
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wmissing-export-lists
+- -Wmissing-home-modules
+- -Wpartial-fields
+- -Wredundant-constraints
+- -Wunused-packages
+
+dependencies:
+- base >=4.7 && <5
+
+library:
+  source-dirs: src
+  dependencies:
+  - aeson
+  - base64-bytestring
+  - bytestring
+  - conduit
+  - exceptions
+  - http-conduit
+  - http-types
+  - generic-lens
+  - lens
+  - lens-aeson
+  - mustache
+  - optparse-applicative
+  - path
+  - path-io
+  - project-template
+  - regex-applicative-text
+  - rio
+  - rio-orphans
+  - streaming
+  - streaming-bytestring
+  - text
+  - time
+  - transformers
+  - unordered-containers
+  - yaml
+
+executables:
+  cabal-scaffold:
+    main: Main.hs
+    source-dirs: app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - cabal-scaffold
+    - optparse-applicative
