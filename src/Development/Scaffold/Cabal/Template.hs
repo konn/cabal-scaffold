@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -26,6 +27,7 @@ import Data.Aeson qualified as J
 import Data.ByteString qualified as BS
 import Data.ByteString.Base64 qualified as B64
 import Data.ByteString.Lazy qualified as LBS
+import Data.Coerce (coerce)
 import Data.Functor.Of (Of)
 import Data.Maybe (fromJust)
 import Data.Text qualified as T
@@ -35,8 +37,9 @@ import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Encoding qualified as LT
 import Development.Scaffold.Cabal.Config
 import Development.Scaffold.Cabal.Constants
-import Network.HTTP.Conduit (Response (..), http, newManager, tlsManagerSettings)
-import Path (Abs, Dir, File, Path, Rel, fromRelFile, parent, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, toFilePath, (</>))
+import Network.HTTP.Conduit (Request (..), Response (..), http, newManager, tlsManagerSettings)
+import Network.HTTP.Types (status200)
+import Path (Abs, Dir, File, Path, Rel, addExtension, fromRelFile, parent, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, replaceExtension, toFilePath, (</>))
 import Path.IO
 import Path.IO qualified as P
 import RIO
@@ -70,8 +73,21 @@ readTemplateFile fp = do
   case eith of
     Right OnlineTemplate {..} -> do
       man <- liftIO $ newManager tlsManagerSettings
-      rsp <- http (fromString download_url) man
-      C.runConduit $ responseBody rsp .| C.mapM_C Q.fromStrict
+      let etagFile = fromJust $ addExtension ".etag" fp
+      thereETag <- doesFileExist etagFile
+      etag <-
+        if thereETag
+          then Just <$> readFileBinary (toFilePath etagFile)
+          else pure Nothing
+      let req =
+            (fromString download_url)
+              { requestHeaders =
+                  [("If-None-Match", et) | et <- maybeToList etag]
+              }
+      rsp <- http req man
+      if responseStatus rsp == status200
+        then C.runConduit $ responseBody rsp .| C.mapM_C Q.fromStrict
+        else Q.fromStrict $ coerce content
     Left {} -> Q.readFile (toFilePath fp)
 
 searchTemplatePath ::
