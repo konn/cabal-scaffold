@@ -21,7 +21,10 @@ import Control.Lens (re, (^?!))
 import Data.Aeson qualified as J
 import Data.Aeson.KeyMap qualified as JKM
 import Data.Aeson.Lens qualified as JL
+import Data.Attoparsec.ByteString.Char8 qualified as A
 import Data.Bifunctor qualified as Bi
+import Data.ByteString.Char8 qualified as BS
+import Data.Char qualified as Char
 import Data.Generics.Labels ()
 import Data.Maybe (fromJust)
 import Data.Text.IO qualified as T
@@ -44,6 +47,7 @@ import RIO.Process (proc, runProcess, withProcessContextNoLogging, withWorkingDi
 import RIO.Text qualified as T
 import RIO.Time
 import Streaming.ByteString qualified as Q
+import Streaming.ByteString.Char8.Replace.Attoparsec (replaceAll)
 import Streaming.Prelude qualified as S
 
 runApp :: MonadUnliftIO m => RIO App () -> m ()
@@ -59,6 +63,7 @@ data ProjectOptions = ProjectOptions
   , template :: Maybe String
   , resolver :: PartialSnapshotName
   , additionalParams :: J.Object
+  , withCompiler :: Maybe Text
   }
   deriving (Show, Eq, Ord, Generic)
 
@@ -70,9 +75,6 @@ projectOptionsP = do
         <> Opt.value (PartialLTS Nothing)
         <> Opt.showDefault
         <> Opt.help "Stackage resolver"
-  projectName <-
-    Opt.strArgument $
-      Opt.metavar "PROJECT_NAME" <> Opt.help "Project name"
   additionalParams <-
     JKM.fromList
       <$> Opt.many
@@ -82,6 +84,16 @@ projectOptionsP = do
               <> Opt.metavar "KEY:VALUE"
               <> Opt.help "Parameters to specify explicitly"
         )
+  withCompiler <-
+    Opt.optional $
+      Opt.strOption $
+        Opt.long "with-compiler"
+          <> Opt.short 'w'
+          <> Opt.metavar "COMPILER"
+          <> Opt.help "The compiler to use in the project"
+  projectName <-
+    Opt.strArgument $
+      Opt.metavar "PROJECT_NAME" <> Opt.help "Project name"
   template <-
     Opt.optional $
       Opt.strArgument $
@@ -168,12 +180,16 @@ newProject ProjectOptions {..} = do
       maybe (throwString "Snapshot resolution failed!") pure
         =<< resolveSnapshot Nothing Nothing resolver
     logInfo $ "Using snapsthot: " <> displayShow snap
+    forM_ withCompiler $ \ghc ->
+      logInfo $ "With compiler: " <> display ghc
     let req = fromString $ freezeFileUrl snap
+        freezePath = fromAbsFile $ dest </> [relfile|cabal.project.freeze|]
     rsp <- http req =<< newManager
-    C.runConduit $
-      responseBody rsp
-        .| C.sinkFile
-          (fromAbsFile $ dest </> [relfile|cabal.project.freeze|])
+    C.runConduit
+      (C.transPipe lift (responseBody rsp) .| C.mapM_C Q.fromStrict)
+      & maybe id (replaceAll . rewriteCompiler) withCompiler
+      & Q.writeFile freezePath
+
     defTmplt <- view $ #config . #defaults . #template
     cfg <- view #config
     time <- zonedTimeToLocalTime <$> getZonedTime
@@ -233,3 +249,12 @@ newProject ProjectOptions {..} = do
             (fromAbsFile $ dest </> [relfile|cabal.project|])
             "packages: *.cabal"
         logInfo "Project Created."
+
+rewriteCompiler :: Text -> A.Parser BS.ByteString
+rewriteCompiler compiler =
+  ("with-compiler: " <> T.encodeUtf8 compiler)
+    <$ A.string "with-compiler"
+    <* A.skipMany A.space
+    <* A.char ':'
+    <* A.skipMany A.space
+    <* some (A.satisfy $ \c -> Char.isAlphaNum c || c `elem` ['-', '_', '.'])

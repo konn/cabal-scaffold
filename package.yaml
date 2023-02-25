@@ -43,10 +43,13 @@ library:
   - path
   - path-io
   - project-template
+  - attoparsec
   - regex-applicative-text
+  - replace-attoparsec
   - rio
   - rio-orphans
   - streaming
+  - streaming-attoparsec
   - streaming-bytestring
   - text
   - time

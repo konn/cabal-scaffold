@@ -30,6 +30,7 @@ library
       Development.Scaffold.Cabal.Constants
       Development.Scaffold.Cabal.Snapshots
       Development.Scaffold.Cabal.Template
+      Streaming.ByteString.Char8.Replace.Attoparsec
   other-modules:
       Paths_cabal_scaffold
   autogen-modules:
@@ -39,6 +40,7 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wunused-packages
   build-depends:
       aeson
+    , attoparsec
     , base >=4.7 && <5
     , base64-bytestring
     , bytestring
@@ -55,9 +57,11 @@ library
     , path-io
     , project-template
     , regex-applicative-text
+    , replace-attoparsec
     , rio
     , rio-orphans
     , streaming
+    , streaming-attoparsec
     , streaming-bytestring
     , text
     , time
