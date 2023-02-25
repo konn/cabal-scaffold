@@ -65,3 +65,4 @@ executables:
     dependencies:
     - cabal-scaffold
     - optparse-applicative
+    - text

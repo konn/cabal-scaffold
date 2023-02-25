@@ -12,6 +12,7 @@ module Development.Scaffold.Cabal (
   runApp,
   projectOptionsP,
   decompressTemplate,
+  importTemplate,
 ) where
 
 import Conduit ((.|))
@@ -22,23 +23,34 @@ import Data.Aeson.KeyMap qualified as JKM
 import Data.Aeson.Lens qualified as JL
 import Data.Bifunctor qualified as Bi
 import Data.Generics.Labels ()
+import Data.Maybe (fromJust)
 import Data.Text.Encoding qualified as T
 import Data.Text.IO qualified as T
 import Data.Yaml qualified as Y
 import Development.Scaffold.Cabal.Config
-import Development.Scaffold.Cabal.Constants (getGlobalConfigFilePath)
+import Development.Scaffold.Cabal.Constants (getDataDir, getGlobalConfigFilePath)
 import Development.Scaffold.Cabal.Snapshots
 import Development.Scaffold.Cabal.Template
 import Network.HTTP.Client.Conduit (Response (..), newManager)
 import Network.HTTP.Conduit (http)
 import Options.Applicative qualified as Opt
 import Path
-import Path.IO (createDirIfMissing, doesDirExist, listDir, removeDirRecur, resolveDir')
+import Path.IO (copyFile, createDirIfMissing, doesDirExist, doesFileExist, listDir, removeDirRecur, resolveDir', resolveFile')
 import RIO
+import RIO.Directory qualified as RIOD
 import RIO.Orphans (HasResourceMap (..), ResourceMap, withResourceMap)
 import RIO.Text qualified as T
 import RIO.Time
+import Streaming.ByteString qualified as Q
 import Streaming.Prelude qualified as S
+
+runApp :: MonadUnliftIO m => RIO App () -> m ()
+runApp act = do
+  config <- Y.decodeFileThrow . fromAbsFile =<< getGlobalConfigFilePath
+  logOpts <- logOptionsHandle stdout True
+  withLogFunc logOpts $ \logger ->
+    withResourceMap $ \resourceMap ->
+      runRIO App {..} act
 
 data ProjectOptions = ProjectOptions
   { projectName :: T.Text
@@ -81,6 +93,30 @@ fieldReader str =
     (l, ':' : r) -> pure (fromString l, fromString r)
     _ -> Nothing
 
+importTemplate :: T.Text -> FilePath -> RIO App ()
+importTemplate name dirOrFile = do
+  dataDir <- getDataDir
+  let dest = dataDir </> fromJust (parseRelFile $ T.unpack name <> ".hsfiles")
+  already <- doesFileExist dest
+  when already $
+    throwString $
+      "The template `" <> T.unpack name <> "' is already present."
+  isFile <- RIOD.doesFileExist dirOrFile
+  isDir <- RIOD.doesDirectoryExist dirOrFile
+  unless (isFile || isDir) $ do
+    throwString $ "Source template `" <> dirOrFile <> "' doesn't exist or not a regular file/directory"
+  if isFile
+    then do
+      src <- resolveFile' dirOrFile
+      S.effects (decodeTemplate $ Q.readFile dirOrFile)
+        `catchAny` \exc ->
+          throwString $ "Invalid template: " <> displayException exc
+      copyFile src dest
+    else do
+      src <- resolveDir' dirOrFile
+      encodeDirToTemplate src & Q.writeFile (fromAbsFile dest)
+  logInfo $ "Template saved: " <> fromString (fromAbsFile dest)
+
 decompressTemplate :: String -> FilePath -> RIO App ()
 decompressTemplate targ dest0 = do
   cfg <- view #config
@@ -115,14 +151,6 @@ instance HasLogFunc App where
 
 instance HasResourceMap App where
   resourceMapL = #resourceMap
-
-runApp :: MonadUnliftIO m => RIO App () -> m ()
-runApp act = do
-  config <- Y.decodeFileThrow . fromAbsFile =<< getGlobalConfigFilePath
-  logOpts <- logOptionsHandle stdout True
-  withLogFunc logOpts $ \logger ->
-    withResourceMap $ \resourceMap ->
-      runRIO App {..} act
 
 newProject :: ProjectOptions -> RIO App ()
 newProject ProjectOptions {..} = do
