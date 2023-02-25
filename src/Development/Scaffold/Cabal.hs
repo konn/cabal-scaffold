@@ -24,8 +24,9 @@ import Data.Aeson.Lens qualified as JL
 import Data.Bifunctor qualified as Bi
 import Data.Generics.Labels ()
 import Data.Maybe (fromJust)
-import Data.Text.Encoding qualified as T
 import Data.Text.IO qualified as T
+import Data.Text.Lazy qualified as LT
+import Data.Text.Lazy.Encoding qualified as LT
 import Data.Yaml qualified as Y
 import Development.Scaffold.Cabal.Config
 import Development.Scaffold.Cabal.Constants (getDataDir, getGlobalConfigFilePath)
@@ -35,10 +36,11 @@ import Network.HTTP.Client.Conduit (Response (..), newManager)
 import Network.HTTP.Conduit (http)
 import Options.Applicative qualified as Opt
 import Path
-import Path.IO (copyFile, createDirIfMissing, doesDirExist, doesFileExist, listDir, removeDirRecur, resolveDir', resolveFile')
+import Path.IO (copyFile, createDirIfMissing, doesDirExist, doesFileExist, findExecutable, listDir, removeDirRecur, resolveDir', resolveFile')
 import RIO
 import RIO.Directory qualified as RIOD
 import RIO.Orphans (HasResourceMap (..), ResourceMap, withResourceMap)
+import RIO.Process (proc, runProcess, withProcessContextNoLogging, withWorkingDir)
 import RIO.Text qualified as T
 import RIO.Time
 import Streaming.ByteString qualified as Q
@@ -96,6 +98,7 @@ fieldReader str =
 importTemplate :: T.Text -> FilePath -> RIO App ()
 importTemplate name dirOrFile = do
   dataDir <- getDataDir
+  createDirIfMissing True dataDir
   let dest = dataDir </> fromJust (parseRelFile $ T.unpack name <> ".hsfiles")
   already <- doesFileExist dest
   when already $
@@ -127,7 +130,7 @@ decompressTemplate targ dest0 = do
       =<< searchTemplatePath cfg targ
   readTemplateFile pth
     & decodeTemplate
-    & S.map (Bi.second T.decodeUtf8)
+    & S.map (Bi.second $ LT.toStrict . LT.decodeUtf8)
     & sinkToDir dest
 
 makeSureEmpty :: MonadIO m => Path b Dir -> m ()
@@ -195,16 +198,35 @@ newProject ProjectOptions {..} = do
               , additionalParams
               ]
     mtemplate <- searchTemplatePath cfg tmpltName
-    unless (isJust mtemplate) $
-      throwString "No template file found!"
-    forM_ mtemplate $ \fp ->
-      readTemplateFile fp
-        & decodeTemplate
-        & applyMustache ctx
-        & sinkToDir dest
-    liftIO $
-      T.writeFile
-        (fromAbsFile $ dest </> [relfile|cabal.project|])
-        "packages: *.cabal"
+    case mtemplate of
+      Nothing -> throwString "No template file found!"
+      Just fp -> do
+        pkgYamls <-
+          readTemplateFile fp
+            & decodeTemplate
+            & S.store
+              ( S.map fst
+                  >>> S.filter ((== [relfile|package.yaml|]) . filename)
+                  >>> S.toList_
+              )
+            & applyMustache ctx
+            & sinkToDir dest
+        hpack <- view $ #config . #hpack
 
-    pure ()
+        when (not (null pkgYamls) && hpack) $ do
+          hpackExe <- findExecutable [relfile|hpack|]
+          case hpackExe of
+            Just hp -> do
+              logInfo "package.yaml is found and hpack is enabled. generatring..."
+              withProcessContextNoLogging $
+                withWorkingDir (fromAbsDir dest) $
+                  forM_ pkgYamls $ \yaml ->
+                    proc (toFilePath hp) [fromRelFile yaml] runProcess
+            Nothing ->
+              logWarn "package.yaml is found, but no hpack is found. Skipping."
+
+        liftIO $
+          T.writeFile
+            (fromAbsFile $ dest </> [relfile|cabal.project|])
+            "packages: *.cabal"
+        pure ()

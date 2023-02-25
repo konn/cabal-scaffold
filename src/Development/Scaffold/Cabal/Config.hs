@@ -20,6 +20,7 @@ import GHC.Generics
 
 data ScaffoldConfig = ScaffoldConfig
   { templateDirs :: [FilePath]
+  , hpack :: Bool
   , defaults :: Defaults
   , params :: Params
   }

@@ -16,19 +16,26 @@ module Development.Scaffold.Cabal.Template (
   readTemplateFile,
 ) where
 
+import Conduit ((.|))
 import Conduit qualified as C
+import Control.Lens (imapM_)
 import Control.Monad.Catch.Pure (CatchT (..))
+import Control.Monad.Trans.Writer.Strict (execWriterT)
 import Data.Aeson (FromJSON)
 import Data.Aeson qualified as J
 import Data.ByteString qualified as BS
 import Data.ByteString.Base64 qualified as B64
+import Data.ByteString.Lazy qualified as LBS
 import Data.Functor.Of (Of)
 import Data.Maybe (fromJust)
+import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Data.Text.IO qualified as T
+import Data.Text.Lazy qualified as LT
+import Data.Text.Lazy.Encoding qualified as LT
 import Development.Scaffold.Cabal.Config
 import Development.Scaffold.Cabal.Constants
-import GHC.Records (HasField (..))
+import Network.HTTP.Conduit (Response (..), http, newManager, tlsManagerSettings)
 import Path (Abs, Dir, File, Path, Rel, fromRelFile, parent, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, toFilePath, (</>))
 import Path.IO
 import Path.IO qualified as P
@@ -61,7 +68,10 @@ readTemplateFile :: (C.MonadResource m) => Path b File -> Q.ByteStream m ()
 readTemplateFile fp = do
   eith <- liftIO $ J.eitherDecodeFileStrict @OnlineTemplate $ toFilePath fp
   case eith of
-    Right OnlineTemplate {..} -> Q.fromStrict $ getField @"runBase64" content
+    Right OnlineTemplate {..} -> do
+      man <- liftIO $ newManager tlsManagerSettings
+      rsp <- http (fromString download_url) man
+      C.runConduit $ responseBody rsp .| C.mapM_C Q.fromStrict
     Left {} -> Q.readFile (toFilePath fp)
 
 searchTemplatePath ::
@@ -102,7 +112,7 @@ encodeDirToTemplate dir =
     ( S.mapM_
         C.yield
         ( dirFiles dir
-            & S.map (\fp -> (toFilePath fp, liftIO $ BS.readFile $ toFilePath fp))
+            & S.map (\fp -> (toFilePath fp, liftIO $ BS.readFile $ toFilePath $ dir </> fp))
         )
         C..| createTemplate
         C..| C.mapM_C S.yield
@@ -122,35 +132,40 @@ fromByteStream =
 decodeTemplate ::
   (MonadThrow m) =>
   Q.ByteStream m () ->
-  S.Stream (Of (Path Rel File, ByteString)) m ()
+  S.Stream (Of (Path Rel File, LBS.ByteString)) m ()
 decodeTemplate bs = do
-  either (lift . throwM) pure
-    =<< runCatchT
-      ( C.runConduit $
-          fromByteStream (hoist (lift . lift) bs)
-            C..| unpackTemplate (\fp -> C.mapM_C $ lift . S.yield . (fromJust $ parseRelFile fp,)) id
-      )
+  dic <-
+    lift $
+      execWriterT
+        ( runCatchT
+            ( C.runConduit $
+                fromByteStream (hoist (lift . lift) bs)
+                  C..| unpackTemplate receiveMem id
+            )
+        )
+  imapM_ (curry S.yield . fromJust . parseRelFile) dic
 
 type Context = J.Value
 
 applyMustache ::
-  MonadThrow m =>
+  (MonadThrow m) =>
   Context ->
-  S.Stream (Of (Path Rel File, ByteString)) m () ->
-  S.Stream (Of (Path Rel File, Text)) m ()
+  S.Stream (Of (Path Rel File, LBS.ByteString)) m r ->
+  S.Stream (Of (Path Rel File, T.Text)) m r
 applyMustache ctx =
   S.mapM $ \(fp, bs) -> do
     tmplt <-
       either (throwM . userError . show) pure $
         compileTemplate (fromRelFile fp) $
-          T.decodeUtf8 bs
+          LT.toStrict $
+            LT.decodeUtf8 bs
     pure (fp, substitute tmplt ctx)
 
 sinkToDir ::
   MonadIO m =>
   -- | Base Directory
   Path b Dir ->
-  S.Stream (Of (Path Rel File, Text)) m r ->
+  S.Stream (Of (Path Rel File, T.Text)) m r ->
   m r
 sinkToDir baseDir =
   S.mapM_ $ \(fp, txt) -> do
