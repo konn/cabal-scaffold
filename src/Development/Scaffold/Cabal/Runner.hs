@@ -15,7 +15,9 @@ import RIO.Orphans (HasResourceMap (..), ResourceMap, withResourceMap)
 runApp :: (MonadUnliftIO m, HasCallStack) => RIO App () -> m ()
 runApp act = do
   config <- Y.decodeFileThrow . fromAbsFile =<< getGlobalConfigFilePath
-  logOpts <- logOptionsHandle stdout True
+  logOpts <-
+    logOptionsHandle stdout True
+      <&> setLogUseLoc False
   withLogFunc logOpts $ \logger ->
     withResourceMap $ \resourceMap ->
       runRIO App {..} $ act `catchAny` reporter

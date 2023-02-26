@@ -31,6 +31,7 @@ library:
   - aeson
   - base64-bytestring
   - bytestring
+  - containers
   - conduit
   - exceptions
   - http-conduit

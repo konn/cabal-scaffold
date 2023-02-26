@@ -28,6 +28,7 @@ library
       Development.Scaffold.Cabal
       Development.Scaffold.Cabal.Actions.Expand
       Development.Scaffold.Cabal.Actions.Import
+      Development.Scaffold.Cabal.Actions.List
       Development.Scaffold.Cabal.Actions.New
       Development.Scaffold.Cabal.Config
       Development.Scaffold.Cabal.Constants
@@ -50,6 +51,7 @@ library
     , base64-bytestring
     , bytestring
     , conduit
+    , containers
     , exceptions
     , generic-lens
     , http-conduit

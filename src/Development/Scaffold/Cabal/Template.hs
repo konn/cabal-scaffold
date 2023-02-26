@@ -17,6 +17,7 @@ module Development.Scaffold.Cabal.Template (
   sinkToDir,
   encodeDirToTemplate,
   readTemplateFile,
+  listTemplateDirs,
 ) where
 
 import Conduit ((.|))
@@ -32,6 +33,7 @@ import qualified Data.ByteString.Lazy as LBS
 import Data.Coerce (coerce)
 import Data.Functor.Of (Of)
 import Data.Maybe (fromJust)
+import Data.Monoid (Ap (..), First (..))
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
@@ -92,12 +94,16 @@ readTemplateFile fp = do
         else Q.fromStrict $ coerce content
     Left {} -> Q.readFile (toFilePath fp)
 
+listTemplateDirs :: MonadIO m => ScaffoldConfig -> m (NonEmpty (Path Abs Dir))
+listTemplateDirs ScaffoldConfig {..} = do
+  (:|) <$> getDataDir <*> mapM expandAndResolve templateDirs
+
 searchTemplatePath ::
   MonadIO m =>
   ScaffoldConfig ->
   String ->
   m (Maybe (Path Abs File))
-searchTemplatePath ScaffoldConfig {..} hint =
+searchTemplatePath cfg hint =
   case parseAbsFile hint of
     Just p -> do
       there <- doesFileExist p
@@ -105,11 +111,11 @@ searchTemplatePath ScaffoldConfig {..} hint =
     Nothing -> do
       targ <- resolveFile' hint
       there <- doesFileExist targ
-      dataDir <- getDataDir
-      temps <- mapM expandAndResolve templateDirs
       if there
         then pure $ Just targ
-        else asum <$> mapM (`findInDir` hint) (dataDir : temps)
+        else
+          fmap getFirst . getAp . foldMap (Ap . fmap First . (`findInDir` hint))
+            =<< listTemplateDirs cfg
 
 expandAndResolve :: MonadIO m => FilePath -> m (Path Abs Dir)
 expandAndResolve "~" = getHomeDir

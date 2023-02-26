@@ -8,6 +8,7 @@ data Cmd
   = New ProjectOptions
   | Expand ExpandOptions
   | Import ImportOptions
+  | List
   deriving (Show, Eq, Ord)
 
 appP :: Opt.ParserInfo Cmd
@@ -28,6 +29,12 @@ appP = Opt.info (p <**> Opt.helper) $ Opt.progDesc "Cabal project scaffold with 
               "import"
               $ Opt.info (Import <$> importOptionsP)
               $ Opt.progDesc "Import directory or .hsfiles as a new preset template"
+          , Opt.command "list" $
+              Opt.info (pure List) $
+                Opt.progDesc "List all the available templates"
+          , Opt.command "ls" $
+              Opt.info (pure List) $
+                Opt.progDesc "Alias for list"
           ]
 
 main :: IO ()
@@ -37,3 +44,4 @@ main = do
     New opts -> runApp $ newProject opts
     Expand opts -> runApp $ expandTemplate opts
     Import opts -> runApp $ importTemplate opts
+    List -> runApp listTemplates
