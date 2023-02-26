@@ -109,7 +109,7 @@ searchTemplatePath ScaffoldConfig {..} hint =
       temps <- mapM expandAndResolve templateDirs
       if there
         then pure $ Just targ
-        else asum <$> mapM (`findInDir` hint) (temps <> [dataDir])
+        else asum <$> mapM (`findInDir` hint) (dataDir : temps)
 
 expandAndResolve :: MonadIO m => FilePath -> m (Path Abs Dir)
 expandAndResolve "~" = getHomeDir
