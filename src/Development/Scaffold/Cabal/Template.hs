@@ -1,9 +1,11 @@
-{-# LANGUAGE GHC2021 #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
@@ -18,34 +20,34 @@ module Development.Scaffold.Cabal.Template (
 ) where
 
 import Conduit ((.|))
-import Conduit qualified as C
+import qualified Conduit as C
 import Control.Lens (imapM_)
 import Control.Monad.Catch.Pure (CatchT (..))
 import Control.Monad.Trans.Writer.Strict (execWriterT)
 import Data.Aeson (FromJSON)
-import Data.Aeson qualified as J
-import Data.ByteString qualified as BS
-import Data.ByteString.Base64 qualified as B64
-import Data.ByteString.Lazy qualified as LBS
+import qualified Data.Aeson as J
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Base64 as B64
+import qualified Data.ByteString.Lazy as LBS
 import Data.Coerce (coerce)
 import Data.Functor.Of (Of)
 import Data.Maybe (fromJust)
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as T
-import Data.Text.IO qualified as T
-import Data.Text.Lazy qualified as LT
-import Data.Text.Lazy.Encoding qualified as LT
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LT
 import Development.Scaffold.Cabal.Config
 import Development.Scaffold.Cabal.Constants
 import Network.HTTP.Conduit (Request (..), Response (..), http, newManager, tlsManagerSettings)
 import Network.HTTP.Types (status200)
-import Path (Abs, Dir, File, Path, Rel, addExtension, fromRelFile, parent, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, replaceExtension, toFilePath, (</>))
+import Path (Abs, Dir, File, Path, Rel, addExtension, fromRelFile, parent, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, toFilePath, (</>))
 import Path.IO
-import Path.IO qualified as P
+import qualified Path.IO as P
 import RIO
 import Streaming (hoist)
-import Streaming.ByteString qualified as Q
-import Streaming.Prelude qualified as S
+import qualified Streaming.ByteString as Q
+import qualified Streaming.Prelude as S
 import Text.Mustache (compileTemplate, substitute)
 import Text.ProjectTemplate
 
@@ -136,7 +138,7 @@ encodeDirToTemplate dir =
     & Q.fromChunks
 
 dirFiles :: MonadIO m => Path b Dir -> S.Stream (Of (Path Rel File)) m ()
-dirFiles = P.listDirRecurRel >=> snd >>> S.each
+dirFiles = P.walkDirRel $ \dir _ chs -> WalkExclude [] <$ S.map (dir </>) (S.each chs)
 
 fromByteStream ::
   Monad m =>

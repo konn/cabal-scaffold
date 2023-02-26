@@ -1,5 +1,5 @@
-{-# LANGUAGE GHC2021 #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -12,9 +12,9 @@ module Development.Scaffold.Cabal.Config (
 ) where
 
 import Data.Aeson (FromJSON, ToJSON, (.:), (.:?))
-import Data.Aeson qualified as J
-import Data.Aeson.KeyMap qualified as JKM
-import Data.Text qualified as T
+import qualified Data.Aeson as J
+import qualified Data.Aeson.KeyMap as JKM
+import qualified Data.Text as T
 import Development.Scaffold.Cabal.Snapshots
 import GHC.Generics
 

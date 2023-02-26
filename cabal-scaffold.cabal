@@ -26,10 +26,15 @@ source-repository head
 library
   exposed-modules:
       Development.Scaffold.Cabal
+      Development.Scaffold.Cabal.Actions.Expand
+      Development.Scaffold.Cabal.Actions.Import
+      Development.Scaffold.Cabal.Actions.New
       Development.Scaffold.Cabal.Config
       Development.Scaffold.Cabal.Constants
+      Development.Scaffold.Cabal.Runner
       Development.Scaffold.Cabal.Snapshots
       Development.Scaffold.Cabal.Template
+      Path.IO.Utils
       Streaming.ByteString.Char8.Replace.Attoparsec
   other-modules:
       Paths_cabal_scaffold

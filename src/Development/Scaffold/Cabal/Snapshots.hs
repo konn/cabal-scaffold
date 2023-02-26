@@ -1,7 +1,8 @@
-{-# LANGUAGE GHC2021 #-}
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -26,17 +27,17 @@ import Control.Lens (Lens')
 import Control.Monad (replicateM)
 import Control.Monad.Trans.Maybe (MaybeT (..))
 import Data.Aeson (FromJSON (..), FromJSONKey, ToJSON, ToJSONKey)
-import Data.Aeson qualified as J
-import Data.Aeson.Encoding qualified as AE
-import Data.Aeson.Key qualified as AK
-import Data.ByteString.Char8 qualified as BS
-import Data.Char qualified as C
+import qualified Data.Aeson as J
+import qualified Data.Aeson.Encoding as AE
+import qualified Data.Aeson.Key as AK
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.Char as C
 import Data.Coerce (coerce)
 import Data.Functor ((<&>))
-import Data.HashMap.Strict qualified as HM
+import qualified Data.HashMap.Strict as HM
 import Data.Maybe (fromMaybe)
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as TE
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 import Data.Time.Calendar
 import GHC.Generics (Generic)
 import Network.HTTP.Client.Conduit (HttpException (..), HttpExceptionContent (..), Request (..), Response (..), parseUrlThrow)
@@ -45,7 +46,7 @@ import Network.HTTP.Types (status304)
 import RIO (Hashable, ReaderT (..), handle, throwIO, throwString, tshow)
 import RIO.Time (defaultTimeLocale, formatTime)
 import Text.Regex.Applicative.Text
-import Text.Regex.Applicative.Text qualified as RE
+import qualified Text.Regex.Applicative.Text as RE
 
 data PartialSnapshotName
   = PartialLTS (Maybe (Int, Maybe Int))

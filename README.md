@@ -70,9 +70,9 @@ defaults:
   snapshot: lts-20
 
 params: 
-  author-name: Hiromi ISHII
-  author-email: konn.jinro_at_gmail.com
-  github-username: konn
+  author-name: Your Name
+  author-email: your_name@example.com
+  # github-username: octcat
 ```
 
 ## Templates
@@ -84,7 +84,7 @@ You can just copy templates from `~/.stack/templates`, or adding `~/.stack/templ
 Templates in the scope can be inspected by `cabal-scaffold expand` command:
 
 ```sh
-Usage: cabal-scaffold expand TEMPLATE DIR
+Usage: cabal-scaffold expand TEMPLATE [DIR]
 
   Search and expand the template to the specified directory
 
@@ -97,13 +97,15 @@ Available options:
 Directory or hsfiles can be imported by `cabal-scaffold import` command:
 
 ```sh
-Usage: cabal-scaffold import TEMPLATE_NAME PATH
+Usage: cabal-scaffold import [-S|--override] PATH [TEMPLATE_NAME]
 
   Import directory or .hsfiles as a new preset template
 
 Available options:
-  TEMPLATE_NAME            The name ofThe new template
+  -S,--override            If on, this will overrides the existing templates
   PATH                     The path to the hsfiles tempalte-file or directory to
                            import as a template
+  TEMPLATE_NAME            The name of the template. If omitted, uses the base
+                           name (without extension) of input template path.
   -h,--help                Show this help text
 ```
