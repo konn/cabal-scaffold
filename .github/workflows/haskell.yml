@@ -1,0 +1,52 @@
+name: Haskell
+on:
+  push: 
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macOS, ubuntu]
+    name: Build (${{matrix.os}})
+    env:
+      artifact-name: cabal-store-${{matrix.os}}.zstd
+    runs-on: ${{matrix.os}}-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: haskell/actions/setup@v2
+      with:
+        ghc-version: 9.2.7
+        cabal-version: 3.10.1.0
+    - name: Cache ~/.cabal/store
+      uses: actions/cache@v3
+      with:
+        path: ~/.cabal/store
+        key: build-cabal-store-${{runner.os}}-${{ hashFiles('**/*.cabal', 'cabal.project', 'cabal.project.freeze') }}
+        restore-keys: |
+          build-cabal-store-${{runner.os}}-
+    - name: Cache dist-newstyle
+      uses: actions/cache@v3
+      with:
+        path: dist-newstyle
+        key: build-dist-${{runner.os}}-${{ hashFiles('**/*.cabal', 'cabal.project', 'cabal.project.freeze') }}-${{ hashFiles('**/*.hs') }}
+        restore-keys: |
+          build-dist-${{runner.os}}-${{ hashFiles('**/*.cabal', 'cabal.project', 'cabal.project.freeze') }}-
+          build-dist-${{runner.os}}-
+    - name: Cabal configure & update
+      run: |
+        cabal v2-configure --enable-tests --enable-benchmarks --enable-optimization
+        cabal v2-update
+    - name: Cabal build
+      run: cabal v2-build
+    - name: Collect artifact
+      run: |
+        DEST=$(cabal list-bin cabal-scaffold)
+        zstdmt -8 "${DEST}" -o ${{env.artifact-name}}
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: binary-${{matrix.os}}
+        path: ${{env.artifact-name}}
