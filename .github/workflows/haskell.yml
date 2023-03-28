@@ -48,5 +48,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: binary-${{matrix.os}}
+        name: cabal-scaffold-${{matrix.os}}
         path: ${{env.artifact-name}}
