@@ -12,7 +12,7 @@ jobs:
         os: [macOS, ubuntu]
     name: Build (${{matrix.os}})
     env:
-      artifact-name: cabal-store-${{matrix.os}}.zst
+      artifact-name: cabal-scaffold.zst
     runs-on: ${{matrix.os}}-latest
     steps:
     - uses: actions/checkout@v3
@@ -48,5 +48,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: cabal-scaffold-${{matrix.os}}
+        name: cabal-scaffold-${{runner.os}}
         path: ${{env.artifact-name}}
