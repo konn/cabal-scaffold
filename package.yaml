@@ -46,6 +46,7 @@ library:
   - path
   - path-io
   - project-template
+  - safe-exceptions
   - attoparsec
   - regex-applicative-text
   - replace-attoparsec

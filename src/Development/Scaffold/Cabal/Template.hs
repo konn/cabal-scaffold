@@ -27,6 +27,7 @@ import Control.Monad.Catch.Pure (CatchT (..))
 import Control.Monad.Trans.Writer.Strict (execWriterT)
 import Data.Aeson (FromJSON)
 import qualified Data.Aeson as J
+import qualified Data.Bifunctor as Bi
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Lazy as LBS
@@ -94,12 +95,12 @@ readTemplateFile fp = do
         else Q.fromStrict $ coerce content
     Left {} -> Q.readFile (toFilePath fp)
 
-listTemplateDirs :: MonadIO m => ScaffoldConfig -> m (NonEmpty (Path Abs Dir))
+listTemplateDirs :: (MonadIO m) => ScaffoldConfig -> m (NonEmpty (Path Abs Dir))
 listTemplateDirs ScaffoldConfig {..} = do
   (:|) <$> getDataDir <*> mapM expandAndResolve templateDirs
 
 searchTemplatePath ::
-  MonadIO m =>
+  (MonadIO m) =>
   ScaffoldConfig ->
   String ->
   m (Maybe (Path Abs File))
@@ -117,20 +118,20 @@ searchTemplatePath cfg hint =
           fmap getFirst . getAp . foldMap (Ap . fmap First . (`findInDir` hint))
             =<< listTemplateDirs cfg
 
-expandAndResolve :: MonadIO m => FilePath -> m (Path Abs Dir)
+expandAndResolve :: (MonadIO m) => FilePath -> m (Path Abs Dir)
 expandAndResolve "~" = getHomeDir
 expandAndResolve ('~' : '/' : rest) = do
   home <- getHomeDir
   either throwIO (pure . (home </>)) (parseRelDir rest)
 expandAndResolve fp = either throwIO pure $ parseAbsDir fp
 
-findInDir :: MonadIO m => Path Abs Dir -> String -> m (Maybe (Path Abs File))
+findInDir :: (MonadIO m) => Path Abs Dir -> String -> m (Maybe (Path Abs File))
 findInDir dir hint = fmap join $ forM (parseRelFile (hint <> ".hsfiles")) $ \fp -> do
   let targ = dir </> fp
   there <- doesFileExist targ
   pure $ targ <$ guard there
 
-encodeDirToTemplate :: MonadIO m => Path b Dir -> Q.ByteStream m ()
+encodeDirToTemplate :: (MonadIO m) => Path b Dir -> Q.ByteStream m ()
 encodeDirToTemplate dir =
   C.runConduit
     ( S.mapM_
@@ -143,11 +144,11 @@ encodeDirToTemplate dir =
     )
     & Q.fromChunks
 
-dirFiles :: MonadIO m => Path b Dir -> S.Stream (Of (Path Rel File)) m ()
+dirFiles :: (MonadIO m) => Path b Dir -> S.Stream (Of (Path Rel File)) m ()
 dirFiles = P.walkDirRel $ \dir _ chs -> WalkExclude [] <$ S.map (dir </>) (S.each chs)
 
 fromByteStream ::
-  Monad m =>
+  (Monad m) =>
   Q.ByteStream m r ->
   C.ConduitT a BS.ByteString m r
 fromByteStream =
@@ -172,7 +173,7 @@ decodeTemplate bs = do
 type Context = J.Value
 
 applyMustache ::
-  (MonadThrow m) =>
+  (MonadThrow m, HasCallStack) =>
   Context ->
   S.Stream (Of (Path Rel File, LBS.ByteString)) m r ->
   S.Stream (Of (Path Rel File, T.Text)) m r
@@ -183,10 +184,14 @@ applyMustache ctx =
         compileTemplate (fromRelFile fp) $
           LT.toStrict $
             LT.decodeUtf8 bs
-    pure (fp, substitute tmplt ctx)
+    fp' <-
+      either throwM pure $
+        parseRelFile . T.unpack . flip substitute ctx
+          =<< Bi.first (toException . stringException . show) (compileTemplate "<FileName>" (T.pack $ toFilePath fp))
+    pure (fp', substitute tmplt ctx)
 
 sinkToDir ::
-  MonadIO m =>
+  (MonadIO m) =>
   -- | Base Directory
   Path b Dir ->
   S.Stream (Of (Path Rel File, T.Text)) m r ->

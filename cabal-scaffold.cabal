@@ -69,6 +69,7 @@ library
     , replace-attoparsec
     , rio
     , rio-orphans
+    , safe-exceptions
     , streaming
     , streaming-attoparsec
     , streaming-bytestring
