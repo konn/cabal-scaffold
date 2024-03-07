@@ -141,7 +141,7 @@ decimal =
     0
     (C.digitToInt <$> RE.psym C.isDigit)
 
-decimalN :: Integral a => Int -> RE' a
+decimalN :: (Integral a) => Int -> RE' a
 decimalN n = fromInteger . read <$> replicateM n (RE.psym C.isDigit)
 
 dayRE :: RE Char Day
@@ -150,8 +150,14 @@ dayRE =
 
 snapshotRE :: RE.RE' SnapshotName
 snapshotRE =
-  LTS <$ RE.string "lts-" <*> decimal <* RE.sym '.' <*> decimal
-    <|> Nightly <$ RE.string "nightly-" <*> dayRE
+  LTS
+    <$ RE.string "lts-"
+    <*> decimal
+    <* RE.sym '.'
+    <*> decimal
+      <|> Nightly
+    <$ RE.string "nightly-"
+    <*> dayRE
 
 instance FromJSONKey SnapshotName where
   fromJSONKey = J.FromJSONKeyTextParser (maybe (fail "name") pure . RE.match snapshotRE)
@@ -170,7 +176,7 @@ data SnapshotHistory = SnapshotHistory
   deriving (Show, Eq, Ord, Generic)
 
 getLatestSnapshots ::
-  MonadUnliftIO m =>
+  (MonadUnliftIO m) =>
   -- | The url of snapshots.json
   Maybe String ->
   Maybe SnapshotHistory ->
@@ -231,7 +237,7 @@ lookupSnapshot snap =
 Just nightly-2023-02-14
 -}
 resolveSnapshot ::
-  MonadUnliftIO m =>
+  (MonadUnliftIO m) =>
   Maybe String ->
   Maybe SnapshotHistory ->
   PartialSnapshotName ->

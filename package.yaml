@@ -30,15 +30,18 @@ library:
   source-dirs: src
   dependencies:
   - aeson
+  - attoparsec
   - base64-bytestring
   - bytestring
-  - containers
+  - case-insensitive
   - conduit
+  - containers
   - exceptions
+  - foldable1-classes-compat
   - foldl
+  - generic-lens
   - http-conduit
   - http-types
-  - generic-lens
   - lens
   - lens-aeson
   - mustache
@@ -46,12 +49,11 @@ library:
   - path
   - path-io
   - project-template
-  - safe-exceptions
-  - attoparsec
   - regex-applicative-text
   - replace-attoparsec
   - rio
   - rio-orphans
+  - safe-exceptions
   - streaming
   - streaming-attoparsec
   - streaming-bytestring

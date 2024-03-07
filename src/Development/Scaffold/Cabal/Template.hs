@@ -1,8 +1,12 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
@@ -18,23 +22,33 @@ module Development.Scaffold.Cabal.Template (
   encodeDirToTemplate,
   readTemplateFile,
   listTemplateDirs,
+  templateStackageContext,
 ) where
 
 import Conduit ((.|))
 import qualified Conduit as C
-import Control.Lens (imapM_)
+import Control.Applicative (empty)
+import Control.Lens (alaf, imapM_)
 import Control.Monad.Catch.Pure (CatchT (..))
+import Control.Monad.Trans.Maybe (MaybeT (..))
 import Control.Monad.Trans.Writer.Strict (execWriterT)
 import Data.Aeson (FromJSON)
 import qualified Data.Aeson as J
+import qualified Data.Aeson.Key as AK
+import qualified Data.Aeson.KeyMap as AKM
 import qualified Data.Bifunctor as Bi
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Lazy as LBS
+import Data.CaseInsensitive (CI)
+import qualified Data.CaseInsensitive as CI
 import Data.Coerce (coerce)
+import Data.Foldable1 (Foldable1 (..))
 import Data.Functor.Of (Of)
+import qualified Data.List.NonEmpty as NE
 import Data.Maybe (fromJust)
 import Data.Monoid (Ap (..), First (..))
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
@@ -42,7 +56,9 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LT
 import Development.Scaffold.Cabal.Config
 import Development.Scaffold.Cabal.Constants
+import Development.Scaffold.Cabal.Snapshots (PartialSnapshotName (..), freezeFileUrl, getLatestSnapshots, parsePartialSnapsthot, resolveSnapshot)
 import Network.HTTP.Conduit (Request (..), Response (..), http, newManager, tlsManagerSettings)
+import Network.HTTP.Simple (httpLbs)
 import Network.HTTP.Types (status200)
 import Path (Abs, Dir, File, Path, Rel, addExtension, fromRelFile, parent, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, toFilePath, (</>))
 import Path.IO
@@ -51,7 +67,8 @@ import RIO
 import Streaming (hoist)
 import qualified Streaming.ByteString as Q
 import qualified Streaming.Prelude as S
-import Text.Mustache (compileTemplate, substitute)
+import Text.Mustache (Template (..), compileTemplate, substitute)
+import Text.Mustache.Types (DataIdentifier (..), Node (..))
 import Text.ProjectTemplate
 
 data OnlineTemplate = OnlineTemplate
@@ -94,6 +111,80 @@ readTemplateFile fp = do
         then C.runConduit $ responseBody rsp .| C.mapM_C Q.fromStrict
         else Q.fromStrict $ coerce content
     Left {} -> Q.readFile (toFilePath fp)
+
+templateStackageContext ::
+  ( MonadUnliftIO m
+  , HasLogFunc env
+  , MonadReader env m
+  ) =>
+  Template ->
+  m (AKM.KeyMap J.Value)
+templateStackageContext tplt = do
+  let vars = mustacheVariables tplt
+  snaps <- getLatestSnapshots Nothing Nothing
+  flip (alaf Ap foldMap) vars $
+    NE.nonEmpty >>> \mkeys -> do
+      fold <$> runMaybeT do
+        keys <- MaybeT $ pure mkeys
+        let origkeys = fmap CI.original keys
+        url <- case keys of
+          "stackage" :| ["nightly"] -> do
+            snap <- lift $ resolveSnapshot Nothing (Just snaps) (PartialNightly Nothing)
+            maybe (throwString "nightly snapshot not found") (pure . freezeFileUrl) snap
+          "stackage" :| ["nightly", stamp] -> do
+            snap <-
+              lift . resolveSnapshot Nothing (Just snaps)
+                =<< MaybeT
+                  ( pure $
+                      parsePartialSnapsthot
+                        ("nightly- " <> T.unpack stamp.original)
+                  )
+            maybe (throwString "nightly snapshot not found") (pure . freezeFileUrl) snap
+          "stackage" :| ["lts"] -> do
+            snap <-
+              lift . resolveSnapshot Nothing (Just snaps) $ PartialLTS Nothing
+            maybe (throwString "LTS snapshot not found") (pure . freezeFileUrl) snap
+          "stackage" :| ["lts", major] -> do
+            snap <-
+              lift . resolveSnapshot Nothing (Just snaps)
+                =<< MaybeT
+                  ( pure $
+                      parsePartialSnapsthot
+                        ("lts-" <> T.unpack major.original)
+                  )
+            maybe (throwString "LTS snapshot not found") (pure . freezeFileUrl) snap
+          "stackage" :| ["lts", major, minor] -> do
+            snap <-
+              lift . resolveSnapshot Nothing (Just snaps)
+                =<< MaybeT
+                  ( pure $
+                      parsePartialSnapsthot
+                        ( "lts-"
+                            <> T.unpack major.original
+                            <> "."
+                            <> T.unpack minor.original
+                        )
+                  )
+            maybe (throwString "LTS snapshot not found") (pure . freezeFileUrl) snap
+          _ -> empty
+        httpLbs (fromString url) <&> \txt ->
+          foldrMap1'
+            (flip AKM.singleton (J.toJSON $ LT.decodeUtf8 (responseBody txt)) . AK.fromText)
+            (\t -> AKM.singleton (AK.fromText t) . J.Object)
+            -- (flip AKM.singleton $ J.toJSON $ LT.decodeUtf8 (responseBody txt))
+            -- AKM.singleton
+            origkeys
+
+mustacheVariables :: Template -> Set [CI Text]
+mustacheVariables = foldMap go . ast
+  where
+    go (TextBlock _) = mempty
+    go (Section di t) = identSet di <> foldMap go t
+    go (InvertedSection di t) = identSet di <> foldMap go t
+    go Partial {} = mempty
+    go (Variable _ di) = identSet di
+    identSet (NamedData k) = Set.singleton $ map CI.mk k
+    identSet Implicit = mempty
 
 listTemplateDirs :: (MonadIO m) => ScaffoldConfig -> m (NonEmpty (Path Abs Dir))
 listTemplateDirs ScaffoldConfig {..} = do
@@ -173,7 +264,12 @@ decodeTemplate bs = do
 type Context = J.Value
 
 applyMustache ::
-  (MonadThrow m, HasCallStack) =>
+  ( MonadThrow m
+  , MonadUnliftIO m
+  , HasCallStack
+  , MonadReader env m
+  , HasLogFunc env
+  ) =>
   Context ->
   S.Stream (Of (Path Rel File, LBS.ByteString)) m r ->
   S.Stream (Of (Path Rel File, T.Text)) m r
@@ -184,11 +280,18 @@ applyMustache ctx =
         compileTemplate (fromRelFile fp) $
           LT.toStrict $
             LT.decodeUtf8 bs
+    !ctx' <-
+      templateStackageContext tmplt <&> \dic ->
+        if AKM.null dic
+          then ctx
+          else case ctx of
+            J.Object dic0 -> J.Object $ dic0 <> AKM.map J.toJSON dic
+            _ -> error "Invalid context: object required"
     fp' <-
       either throwM pure $
         parseRelFile . T.unpack . flip substitute ctx
           =<< Bi.first (toException . stringException . show) (compileTemplate "<FileName>" (T.pack $ toFilePath fp))
-    pure (fp', substitute tmplt ctx)
+    pure (fp', substitute tmplt ctx')
 
 sinkToDir ::
   (MonadIO m) =>
