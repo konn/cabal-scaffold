@@ -9,6 +9,7 @@ github: konn/cabal-scaffold
 extra-source-files:
 - README.md
 - CHANGELOG.md
+data-dir: data
 
 ghc-options:
 - -Wall
@@ -34,6 +35,7 @@ library:
   - containers
   - conduit
   - exceptions
+  - foldl
   - http-conduit
   - http-types
   - generic-lens

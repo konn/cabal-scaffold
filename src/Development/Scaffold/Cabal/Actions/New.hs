@@ -16,7 +16,8 @@ module Development.Scaffold.Cabal.Actions.New (
 
 import Conduit ((.|))
 import qualified Conduit as C
-import Control.Lens (re, (^?!))
+import qualified Control.Foldl as L
+import Control.Lens (re, (^?!), _1)
 import qualified Data.Aeson as J
 import qualified Data.Aeson.KeyMap as JKM
 import qualified Data.Aeson.Lens as JL
@@ -144,13 +145,15 @@ newProject ProjectOptions {..} = do
     case mtemplate of
       Nothing -> throwString "No template file found!"
       Just fp -> do
-        pkgYamls <-
+        (pkgYamls, projectThere) <-
           readTemplateFile fp
             & decodeTemplate
             & S.store
-              ( S.map fst
-                  >>> S.filter ((== [relfile|package.yaml|]) . filename)
-                  >>> S.toList_
+              ( L.purely S.fold_ $
+                  L.handles _1 $
+                    (,)
+                      <$> L.prefilter ((== [relfile|package.yaml|]) . filename) L.list
+                      <*> L.elem [relfile|cabal.project|]
               )
             & applyMustache ctx
             & sinkToDir dest
@@ -168,10 +171,11 @@ newProject ProjectOptions {..} = do
             Nothing ->
               logWarn "package.yaml is found, but no hpack is found. Skipping."
 
-        liftIO $
-          T.writeFile
-            (fromAbsFile $ dest </> [relfile|cabal.project|])
-            "packages: *.cabal"
+        unless projectThere $
+          liftIO $
+            T.writeFile
+              (fromAbsFile $ dest </> [relfile|cabal.project|])
+              "packages: **/*.cabal"
         logInfo "Project Created."
 
 rewriteCompiler :: Text -> A.Parser BS.ByteString
