@@ -209,7 +209,7 @@ getLatestSnapshots murl mcurrent = do
       pure SnapshotHistory {..}
 
 defaultSnapshotUrl :: String
-defaultSnapshotUrl = "https://s3.amazonaws.com/haddock.stackage.org/snapshots.json"
+defaultSnapshotUrl = "https://www.stackage.org/download/snapshots.json"
 
 fromPartialSnapshot :: PartialSnapshotName -> Maybe SnapshotName
 fromPartialSnapshot (PartialLTS mxy) = do
