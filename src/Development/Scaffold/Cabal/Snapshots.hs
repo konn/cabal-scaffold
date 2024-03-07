@@ -20,6 +20,8 @@ module Development.Scaffold.Cabal.Snapshots (
   lookupSnapshot,
   resolveSnapshot,
   HasSnapshotHistory (..),
+  snapshotYamlUrl,
+  getSnapshotGHC,
 ) where
 
 import Conduit (MonadUnliftIO)
@@ -31,20 +33,25 @@ import qualified Data.Aeson as J
 import qualified Data.Aeson.Encoding as AE
 import qualified Data.Aeson.Key as AK
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Char as C
 import Data.Coerce (coerce)
 import Data.Functor ((<&>))
 import qualified Data.HashMap.Strict as HM
+import qualified Data.List as L
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Time.Calendar
+import Data.Version (Version, parseVersion)
+import qualified Data.Yaml as Y
 import GHC.Generics (Generic)
 import Network.HTTP.Client.Conduit (HttpException (..), HttpExceptionContent (..), Request (..), Response (..), parseUrlThrow)
 import Network.HTTP.Simple (httpLbs)
 import Network.HTTP.Types (status304)
-import RIO (Hashable, ReaderT (..), handle, throwIO, throwString, tshow)
+import RIO (Hashable, MonadThrow, ReaderT (..), handle, throwIO, throwString, tshow)
 import RIO.Time (defaultTimeLocale, formatTime)
+import Text.ParserCombinators.ReadP (readP_to_S)
 import Text.Regex.Applicative.Text
 import qualified Text.Regex.Applicative.Text as RE
 
@@ -258,3 +265,31 @@ resolveSnapshot murl mhist pn =
 
 freezeFileUrl :: SnapshotName -> String
 freezeFileUrl snap = "https://www.stackage.org/" <> show snap <> "/cabal.config"
+
+snapshotYamlUrl :: SnapshotName -> String
+snapshotYamlUrl (Nightly (YearMonthDay yyyy mm dd)) =
+  "https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/" <> show yyyy <> "/" <> show mm <> "/" <> show dd <> ".yaml"
+snapshotYamlUrl (LTS major minor) =
+  "https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/" <> show major <> "/" <> show minor <> ".yaml"
+
+data RawSnapshotGHC = RawSnapshotGHC {compiler :: String}
+  deriving (Show, Eq, Ord, Generic)
+
+instance FromJSON RawSnapshotGHC where
+  parseJSON = J.withObject "{compiler: ghc-*} or {resolver.compiler: ghc-*}" $ \o -> do
+    compiler <- o J..: "compiler" <|> (o J..: "resolver" >>= (J..: "compiler"))
+    pure RawSnapshotGHC {..}
+
+getSnapshotGHC :: (MonadUnliftIO m, MonadThrow m) => SnapshotName -> m Version
+getSnapshotGHC snap = do
+  src <- fmap responseBody . httpLbs =<< parseUrlThrow (snapshotYamlUrl snap)
+  RawSnapshotGHC compiler <- Y.decodeThrow $ LBS.toStrict src
+
+  ver <-
+    maybe
+      (throwString $ "Invalid compiler: " <> compiler)
+      pure
+      (L.stripPrefix "ghc-" compiler)
+  case [x | (x, "") <- readP_to_S parseVersion ver] of
+    [x] -> pure x
+    _ -> throwString $ "Invalid version: " <> ver

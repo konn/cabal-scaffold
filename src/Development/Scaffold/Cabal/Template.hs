@@ -114,8 +114,6 @@ readTemplateFile fp = do
 
 templateStackageContext ::
   ( MonadUnliftIO m
-  , HasLogFunc env
-  , MonadReader env m
   ) =>
   Template ->
   m (AKM.KeyMap J.Value)
@@ -267,8 +265,6 @@ applyMustache ::
   ( MonadThrow m
   , MonadUnliftIO m
   , HasCallStack
-  , MonadReader env m
-  , HasLogFunc env
   ) =>
   Context ->
   S.Stream (Of (Path Rel File, LBS.ByteString)) m r ->

@@ -110,6 +110,7 @@ newProject ProjectOptions {..} = do
     let req = fromString $ freezeFileUrl snap
         freezePath = fromAbsFile $ dest </> [relfile|cabal.project.freeze|]
     rsp <- http req =<< newManager
+    ver <- getSnapshotGHC snap
     C.runConduit
       (C.transPipe lift (responseBody rsp) .| C.mapM_C Q.fromStrict)
       & maybe id (replaceAll . rewriteCompiler) withCompiler
@@ -130,6 +131,7 @@ newProject ProjectOptions {..} = do
                   [ ("name", J.toJSON projectName)
                   , ("year", J.toJSON year)
                   , ("month", J.toJSON month)
+                  , ("ghc", J.toJSON ver)
                   ,
                     ( "copyright"
                     , fromMaybe
