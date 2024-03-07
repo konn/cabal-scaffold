@@ -150,6 +150,7 @@ newProject ProjectOptions {..} = do
         (pkgYamls, projectThere) <-
           readTemplateFile fp
             & decodeTemplate
+            & applyMustache ctx
             & S.store
               ( L.purely S.fold_ $
                   L.handles _1 $
@@ -157,7 +158,6 @@ newProject ProjectOptions {..} = do
                       <$> L.prefilter ((== [relfile|package.yaml|]) . filename) L.list
                       <*> L.elem [relfile|cabal.project|]
               )
-            & applyMustache ctx
             & sinkToDir dest
         hpack <- view $ #config . #hpack
 
