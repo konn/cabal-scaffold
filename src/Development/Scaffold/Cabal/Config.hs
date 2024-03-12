@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE NoFieldSelectors #-}
 
 module Development.Scaffold.Cabal.Config (
@@ -39,7 +40,7 @@ data Params = Params
   , authorEmail :: T.Text
   , githubUsername :: Maybe T.Text
   , copyright :: Maybe T.Text
-  , rawParams :: J.Object
+  , rawParams :: JKM.KeyMap J.Value
   }
   deriving (Show, Eq, Ord, Generic)
 

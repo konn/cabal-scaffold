@@ -31,15 +31,18 @@ library:
   dependencies:
   - aeson
   - attoparsec
+  - barbies
   - base64-bytestring
   - bytestring
   - case-insensitive
   - conduit
   - containers
+  - dlist
   - exceptions
   - foldable1-classes-compat
   - foldl
   - generic-lens
+  - higgledy
   - http-conduit
   - http-types
   - lens
