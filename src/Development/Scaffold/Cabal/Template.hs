@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
@@ -56,11 +57,12 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LT
 import Development.Scaffold.Cabal.Config
 import Development.Scaffold.Cabal.Constants
+import Development.Scaffold.Cabal.Runner (App (..))
 import Development.Scaffold.Cabal.Snapshots (PartialSnapshotName (..), freezeFileUrl, getLatestSnapshots, parsePartialSnapsthot, resolveSnapshot)
 import Network.HTTP.Conduit (Request (..), Response (..), http, newManager, tlsManagerSettings)
 import Network.HTTP.Simple (httpLbs)
 import Network.HTTP.Types (status200)
-import Path (Abs, Dir, File, Path, Rel, addExtension, fromRelFile, parent, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, toFilePath, (</>))
+import Path (Abs, Dir, File, Path, Rel, SomeBase (..), addExtension, fromRelFile, parent, parseAbsFile, parseRelDir, parseRelFile, parseSomeDir, toFilePath, (</>))
 import Path.IO
 import qualified Path.IO as P
 import RIO
@@ -184,12 +186,12 @@ mustacheVariables = foldMap go . ast
     identSet (NamedData k) = Set.singleton $ map CI.mk k
     identSet Implicit = mempty
 
-listTemplateDirs :: (MonadIO m) => ScaffoldConfig -> m (NonEmpty (Path Abs Dir))
+listTemplateDirs :: (MonadIO m, MonadReader App m, MonadThrow m) => ScaffoldConfig -> m (NonEmpty (Path Abs Dir))
 listTemplateDirs ScaffoldConfig {..} = do
   (:|) <$> getDataDir <*> mapM expandAndResolve templateDirs
 
 searchTemplatePath ::
-  (MonadIO m) =>
+  (MonadIO m, MonadReader App m, MonadThrow m) =>
   ScaffoldConfig ->
   String ->
   m (Maybe (Path Abs File))
@@ -207,12 +209,20 @@ searchTemplatePath cfg hint =
           fmap getFirst . getAp . foldMap (Ap . fmap First . (`findInDir` hint))
             =<< listTemplateDirs cfg
 
-expandAndResolve :: (MonadIO m) => FilePath -> m (Path Abs Dir)
+expandAndResolve :: (MonadIO m, MonadReader App m, MonadThrow m) => FilePath -> m (Path Abs Dir)
 expandAndResolve "~" = getHomeDir
 expandAndResolve ('~' : '/' : rest) = do
   home <- getHomeDir
   either throwIO (pure . (home </>)) (parseRelDir rest)
-expandAndResolve fp = either throwIO pure $ parseAbsDir fp
+expandAndResolve fp = do
+  somePath <- parseSomeDir fp
+  case somePath of
+    Abs d -> pure d
+    Rel rel -> do
+      asks (.configBasePath) >>= \case
+        Just base -> pure $ base </> rel
+        Nothing ->
+          throwString "Relative path is not allowed with default config."
 
 findInDir :: (MonadIO m) => Path Abs Dir -> String -> m (Maybe (Path Abs File))
 findInDir dir hint = fmap join $ forM (parseRelFile (hint <> ".hsfiles")) $ \fp -> do

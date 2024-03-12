@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 
 module Development.Scaffold.Cabal.Runner (runApp, App (..)) where
 
@@ -15,23 +16,26 @@ import Path.IO (doesFileExist, getCurrentDir, makeAbsolute)
 import RIO
 import RIO.Orphans (HasResourceMap (..), ResourceMap, withResourceMap)
 
-findYamlConfigPathIn :: (MonadUnliftIO m) => Path b Dir -> m (Path Abs File)
+findYamlConfigPathIn :: (MonadUnliftIO m) => Path b Dir -> m (Maybe (Path Abs File))
 findYamlConfigPathIn dir = do
   workDir <- makeAbsolute dir
   flip fix workDir \self cwd -> do
     let configPath = cwd </> [relfile|cabal-scaffold.yaml|]
     there <- doesFileExist configPath
     if there
-      then pure configPath
+      then pure $ Just configPath
       else do
         let super = parent cwd
-        if super == cwd
-          then getGlobalConfigFilePath
+        if null (fromAbsDir super) || super == cwd
+          then pure Nothing
           else self super
 
 runApp :: (MonadUnliftIO m, HasCallStack) => RIO App () -> m ()
 runApp act = do
-  config <- Y.decodeFileThrow . fromAbsFile =<< findYamlConfigPathIn =<< getCurrentDir
+  mpath <- findYamlConfigPathIn =<< getCurrentDir
+  let configBasePath = parent <$> mpath
+  path <- maybe getGlobalConfigFilePath pure mpath
+  config <- Y.decodeFileThrow $ fromAbsFile path
   logOpts <-
     logOptionsHandle stdout True
       <&> setLogUseLoc False
@@ -46,6 +50,7 @@ reporter exc = do
 
 data App = App
   { config :: ScaffoldConfig
+  , configBasePath :: Maybe (Path Abs Dir)
   , resourceMap :: ResourceMap
   , logger :: LogFunc
   }
