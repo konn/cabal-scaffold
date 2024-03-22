@@ -28,12 +28,11 @@ jobs:
         OS=${{runner.os}}
         CABAL_HASH=${{ hashFiles('**/*.cabal', 'cabal.project', 'cabal.project.freeze') }}
         GHC=${{matrix.ghc}}
-        echo "cache-key=build-cabal-store-${GHC}-${OS}-${CABAL_HASH}" >> ${GITHUB_OUTPUT}
+        echo "cache-key=build-cabal-store-${OS}-${GHC}-${CABAL_HASH}" >> ${GITHUB_OUTPUT}
         echo "cabal-hash=${CABAL_HASH}" >> ${GITHUB_OUTPUT}
         {
           echo "cache-restore-keys<<STOP"
-          echo "build-cabal-store-${GHC}-${OS}-"
-          echo "build-cabal-store-${GHC}-"
+          echo "build-cabal-store-${OS}-${GHC}-"
           echo "STOP"
         } >> ${GITHUB_OUTPUT}
     - name: Cache ~/.cabal/store
@@ -46,10 +45,10 @@ jobs:
       uses: actions/cache@v3
       with:
         path: dist-newstyle
-        key: build-dist-${{matrix.ghc}}-${{runner.os}}-${{ steps.cache-key.outputs.cabal-hash }}-${{ hashFiles('**/*.hs') }}
+        key: build-dist-${{runner.os}}-${{matrix.ghc}}-${{ steps.cache-key.outputs.cabal-hash }}-${{ hashFiles('**/*.hs') }}
         restore-keys: |
-          build-dist-${{matrix.ghc}}-${{runner.os}}-${{ steps.cache-key.outputs.cabal-hash }}-
-          build-dist-${{matrix.ghc}}-${{runner.os}}-
+          build-dist-${{runner.os}}-${{matrix.ghc}}-${{ steps.cache-key.outputs.cabal-hash }}-
+          build-dist-${{runner.os}}-${{matrix.ghc}}-
     - name: Cabal configure & update
       run: |
         cabal v2-configure --enable-tests --enable-benchmarks --enable-optimization
