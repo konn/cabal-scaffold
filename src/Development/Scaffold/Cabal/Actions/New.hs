@@ -25,6 +25,7 @@ import qualified Data.Attoparsec.ByteString.Char8 as A
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Char as Char
 import Data.Generics.Labels ()
+import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Development.Scaffold.Cabal.Runner
 import Development.Scaffold.Cabal.Snapshots
@@ -129,6 +130,10 @@ newProject ProjectOptions {..} = do
               [ configed
               , JKM.fromList
                   [ ("name", J.toJSON projectName)
+                  ,
+                    ( "Paths_module"
+                    , J.toJSON $ "Paths_" <> T.replace "-" "_" projectName
+                    )
                   , ("year", J.toJSON year)
                   , ("month", J.toJSON month)
                   , ("ghc", J.toJSON ver)

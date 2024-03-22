@@ -31,7 +31,6 @@ library:
   dependencies:
   - aeson
   - attoparsec
-  - barbies
   - base64-bytestring
   - bytestring
   - case-insensitive
@@ -42,7 +41,6 @@ library:
   - foldable1-classes-compat
   - foldl
   - generic-lens
-  - higgledy
   - http-conduit
   - http-types
   - lens
@@ -60,6 +58,7 @@ library:
   - streaming
   - streaming-attoparsec
   - streaming-bytestring
+  - strict
   - text
   - time
   - transformers
