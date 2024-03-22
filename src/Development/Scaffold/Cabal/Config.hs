@@ -31,6 +31,7 @@ data ScaffoldConfig = ScaffoldConfig
 data Defaults = Defaults
   { template :: Maybe String
   , snapshot :: PartialSnapshotName
+  , noProject :: !(Maybe Bool)
   }
   deriving (Show, Eq, Ord, Generic)
   deriving anyclass (FromJSON, ToJSON)

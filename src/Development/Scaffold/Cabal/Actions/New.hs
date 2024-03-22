@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -16,6 +17,7 @@ module Development.Scaffold.Cabal.Actions.New (
 
 import Conduit ((.|))
 import qualified Conduit as C
+import Control.Applicative (empty)
 import qualified Control.Foldl as L
 import Control.Lens (re, (^?!), _1)
 import qualified Data.Aeson as J
@@ -27,6 +29,7 @@ import qualified Data.Char as Char
 import Data.Generics.Labels ()
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import Development.Scaffold.Cabal.Config
 import Development.Scaffold.Cabal.Runner
 import Development.Scaffold.Cabal.Snapshots
 import Development.Scaffold.Cabal.Template
@@ -48,6 +51,7 @@ data ProjectOptions = ProjectOptions
   { projectName :: T.Text
   , template :: Maybe String
   , resolver :: PartialSnapshotName
+  , noProjectFile :: Maybe Bool
   , additionalParams :: J.Object
   , withCompiler :: Maybe Text
   }
@@ -85,6 +89,27 @@ projectOptionsP = do
       Opt.strArgument $
         Opt.metavar "TEMPLATE"
           <> Opt.help "Template Name or path"
+  noProjectFile <-
+    Opt.flag'
+      (Just True)
+      ( Opt.long "no-project-file"
+          <> Opt.help "Create cabal.project and freeze files (default)"
+          <> Opt.internal
+      )
+      <|> Opt.flag
+        Nothing
+        (Just False)
+        ( Opt.long "project-file"
+            <> Opt.help "Do not create cabal.project and freeze files"
+            <> Opt.internal
+        )
+      <|> ( empty
+              <* Opt.flag'
+                Nothing
+                ( Opt.long "[no-]project-file"
+                    <> Opt.help "Whether to create cabal.project and freeze files or not (default: --project-file)"
+                )
+          )
   pure ProjectOptions {..}
 
 fieldReader :: String -> Maybe (J.Key, J.Value)
@@ -100,25 +125,32 @@ newProject ProjectOptions {..} = do
   dir <- makeRelativeToCurrentDir dest
   logInfo $ "Creating project to " <> fromString (fromRelDir dir)
   handleAny (\exc -> removeDirRecur dest >> throwIO exc) $ do
+    cfg <- view #config
     createDirIfMissing True dest
-    -- FIXME: use caching
-    snap <-
-      maybe (throwString "Snapshot resolution failed!") pure
-        =<< resolveSnapshot Nothing Nothing resolver
-    logInfo $ "Using snapsthot: " <> displayShow snap
-    forM_ withCompiler $ \ghc ->
-      logInfo $ "With compiler: " <> display ghc
-    let req = fromString $ freezeFileUrl snap
-        freezePath = fromAbsFile $ dest </> [relfile|cabal.project.freeze|]
-    rsp <- http req =<< newManager
-    ver <- getSnapshotGHC snap
-    C.runConduit
-      (C.transPipe lift (responseBody rsp) .| C.mapM_C Q.fromStrict)
-      & maybe id (replaceAll . rewriteCompiler) withCompiler
-      & Q.writeFile freezePath
+    let genProject =
+          maybe True not $
+            noProjectFile <|> cfg.defaults.noProject
+    mver <-
+      if genProject
+        then do
+          -- FIXME: use caching
+          snap <-
+            maybe (throwString "Snapshot resolution failed!") pure
+              =<< resolveSnapshot Nothing Nothing resolver
+          logInfo $ "Using snapsthot: " <> displayShow snap
+          forM_ withCompiler $ \ghc ->
+            logInfo $ "With compiler: " <> display ghc
+          let req = fromString $ freezeFileUrl snap
+              freezePath = fromAbsFile $ dest </> [relfile|cabal.project.freeze|]
+          rsp <- http req =<< newManager
+          C.runConduit
+            (C.transPipe lift (responseBody rsp) .| C.mapM_C Q.fromStrict)
+            & maybe id (replaceAll . rewriteCompiler) withCompiler
+            & Q.writeFile freezePath
+          Just <$> getSnapshotGHC snap
+        else Nothing <$ logInfo "Project generation is disabled."
 
     defTmplt <- view $ #config . #defaults . #template
-    cfg <- view #config
     time <- zonedTimeToLocalTime <$> getZonedTime
     let YearMonthDay year month _day = localDay time
         tmpltName = fromMaybe "new-template" $ template <|> defTmplt
@@ -128,6 +160,7 @@ newProject ProjectOptions {..} = do
           J.Object $
             mconcat
               [ configed
+              , maybe mempty (JKM.singleton "ghc" . J.toJSON) mver
               , JKM.fromList
                   [ ("name", J.toJSON projectName)
                   ,
@@ -136,7 +169,6 @@ newProject ProjectOptions {..} = do
                     )
                   , ("year", J.toJSON year)
                   , ("month", J.toJSON month)
-                  , ("ghc", J.toJSON ver)
                   ,
                     ( "copyright"
                     , fromMaybe
@@ -178,11 +210,12 @@ newProject ProjectOptions {..} = do
             Nothing ->
               logWarn "package.yaml is found, but no hpack is found. Skipping."
 
-        unless projectThere $
-          liftIO $
-            T.writeFile
-              (fromAbsFile $ dest </> [relfile|cabal.project|])
-              "packages: **/*.cabal"
+        when genProject $
+          unless projectThere $
+            liftIO $
+              T.writeFile
+                (fromAbsFile $ dest </> [relfile|cabal.project|])
+                "packages: **/*.cabal"
         logInfo "Project Created."
 
 rewriteCompiler :: Text -> A.Parser BS.ByteString
