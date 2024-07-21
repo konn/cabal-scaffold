@@ -27,7 +27,7 @@ data Cmd
 
 data VersionInfo = VersionInfo
   { packageVersion :: Version
-  , gitInfo :: GitInfo
+  , gitInfo :: Either String GitInfo
   }
   deriving (Show)
 
@@ -36,7 +36,7 @@ versionInfo =
   [||
   VersionInfo
     { packageVersion = $$(unsafeCodeCoerce $ liftData version)
-    , gitInfo = $$tGitInfoCwd
+    , gitInfo = $$tGitInfoCwdTry
     }
   ||]
 
@@ -57,7 +57,11 @@ longVersion vinfo =
       , Opt.help "Show version info"
       ]
   where
-    str = "cabal-scaffold " <> showVersion (packageVersion vinfo) <> " (commit: " <> giHash (gitInfo vinfo) <> ")"
+    str = "cabal-scaffold " <> showVersion (packageVersion vinfo) <> git
+    git =
+      case gitInfo vinfo of
+        Left {} -> ""
+        Right gi -> " (commit: " <> giHash gi <> ")"
 
 appOptsP :: VersionInfo -> Opt.ParserInfo Cmd
 appOptsP vinfo = Opt.info (p <**> longVersion vinfo <**> shortVersion vinfo <**> Opt.helper) $ Opt.progDesc "Cabal project scaffold with Stackage Snapshots"
