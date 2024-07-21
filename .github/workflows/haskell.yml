@@ -17,10 +17,10 @@ jobs:
     runs-on: ${{matrix.os}}-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2
       with:
         ghc-version: ${{matrix.ghc}}
-        cabal-version: 3.10.3.0
+        cabal-version: 3.12.1.0
     - name: Cache Key Calculation
       id: cache-key
       shell: bash
@@ -51,7 +51,7 @@ jobs:
           build-dist-${{runner.os}}-${{matrix.ghc}}-
     - name: Cabal configure & update
       run: |
-        cabal v2-configure --enable-tests --enable-benchmarks --enable-optimization
+        cabal v2-configure --enable-tests --enable-benchmarks --enable-optimization --semaphore
         cabal v2-update
     - name: Build Deps
       run: cabal v2-build --only-dependencies
