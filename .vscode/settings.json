@@ -1,7 +1,12 @@
 {
   "emeraldwalk.runonsave": {
     "commands": [
-      { "cmd": "hpack", "isAsync": true, "match": "(package\\.yaml|\\.l?hs)$" }
+      {
+        "cmd": "find .  -mindepth 1 -maxdepth 1 \\( -name '*.cabal' -or -name 'cabal.project*' \\) -exec cabal-gild --io {} \\;",
+        "isAsync": true,
+        "match": "(cabal\\.project.*|\\.l?hs)$"
+      }
     ]
-  }
+  },
+  "haskell.sessionLoading": "singleComponent"
 }
