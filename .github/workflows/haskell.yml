@@ -91,9 +91,9 @@ jobs:
     - run: ls -R
     - name: Check Version
       run: |
-        ./scripts/check-version.sh "${RELEASE}" "${{ steps.download.outputs.download-path }}"
+        ./scripts/check-version.sh "${RELEASE}" "."
     # - name: Make Release on GitHub
     #   env:
     #     GH_TOKEN: ${{ github.token }}
     #   run: |
-    #     ./scripts/make-release.sh "${RELEASE}" "${{ steps.download.outputs.download-path }}"
+    #     ./scripts/make-release.sh "${RELEASE}" "."
