@@ -68,7 +68,7 @@ jobs:
         DEST=$(cabal list-bin cabal-scaffold)
         zstdmt -8 "${DEST}" -o ${{env.artifact-name}}
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: cabal-scaffold-${{runner.os}}
         path: ${{env.artifact-name}}
@@ -77,6 +77,21 @@ jobs:
     name: Make Release
     needs: build
     runs-on: ubuntu-latest
+    # if: startsWith(github.ref, 'refs/tags/v')
     steps:
-    - uses: actions/download-artifact@v4
+    # - name: Setups env vars
+    #   run: |
+    #     RELEASE=$(echo ${{github.ref_name}} | sed 's/^v//')
+    #     echo "RELEASE=${RELEASE}" >> "${GITHUB_ENV}"
+    - name: Download artifacts
+      id: download
+      uses: actions/download-artifact@v4
     - run: ls -R
+    - name: Check Version
+      run: |
+        ./scripts/check-version.sh "${RELEASE}" "${{ steps.download.outputs.download-path }}"
+    # - name: Make Release on GitHub
+    #   env:
+    #     GH_TOKEN: ${{ github.token }}
+    #   run: |
+    #     ./scripts/make-release.sh "${RELEASE}" "${{ steps.download.outputs.download-path }}"
