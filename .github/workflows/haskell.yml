@@ -88,6 +88,15 @@ jobs:
     - name: Download artifacts
       id: download
       uses: actions/download-artifact@v4
+    - name: Unzstd artifacts
+      run: |
+        pushd cabal-scaffold-Linux
+        zstdmt -d cabal-scaffold.zst
+        popd
+
+        pushd cabal-scaffold-macOS
+        zstdmt -d cabal-scaffold.zst
+        popd
     - run: ls -R
     - name: Check Version
       run: |
