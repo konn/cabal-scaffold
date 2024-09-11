@@ -29,8 +29,14 @@ chmod +x ./cabal-scaffold
 tar --use-compress-program="gzip -9" -cf "${DEST_DIR}/${LINUX_GZ}" ./cabal-scaffold
 popd
 
+TARBALL=cabal-scaffold-${RELEASE}.tar.gz
+TAR_INI=$(cabal sdist | tail -n1)
+TARBALL=$(basename "${TAR_INI}")
+rm "${TARBALL}"
+cp "${TAR_INI}" "${TARBALL}"
+
 cd "${DEST_DIR}"
-sha256sum "${LINUX_GZ}" "${MAC_GZ}" >SHA256SUMS
+sha256sum "${LINUX_GZ}" "${MAC_GZ}" "${TARBALL}" >SHA256SUMS
 
 gh release create --draft -F "${PROJ_ROOT}"/ChangeLog.md -t "${RELEASE}" \
-"v${RELEASE}" SHA256SUMS "${MAC_GZ}" "${LINUX_GZ}"
+"v${RELEASE}" SHA256SUMS "${MAC_GZ}" "${LINUX_GZ}" "${TARBALL}"
