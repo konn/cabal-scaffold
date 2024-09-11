@@ -32,8 +32,7 @@ popd
 TARBALL=cabal-scaffold-${RELEASE}.tar.gz
 TAR_INI=$(cabal sdist | tail -n1)
 TARBALL=$(basename "${TAR_INI}")
-rm -f "${TARBALL}"
-cp "${TAR_INI}" "${TARBALL}"
+cp "${TAR_INI}" "${DEST_DIR}/${TARBALL}"
 
 cd "${DEST_DIR}"
 sha256sum "${LINUX_GZ}" "${MAC_GZ}" "${TARBALL}" >SHA256SUMS
