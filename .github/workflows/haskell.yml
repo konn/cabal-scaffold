@@ -2,6 +2,7 @@ name: Haskell
 on:
   push: 
     branches: [main]
+    tags: ['v*']
   pull_request:
 
 jobs:
@@ -71,3 +72,11 @@ jobs:
       with:
         name: cabal-scaffold-${{runner.os}}
         path: ${{env.artifact-name}}
+
+  release:
+    name: Make Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v4
+    - run: ls -R
