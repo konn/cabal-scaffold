@@ -108,3 +108,14 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: |
         ./scripts/make-release.sh "${RELEASE}" "."
+    - name: Upload to Hackage
+      if: >
+        github.event_name == 'push'
+        &&
+        startsWith(github.ref, 'refs/tags/v')
+      uses: haskell-actions/hackage-publish@v1
+      with:
+        hackageToken: ${{ secrets.HACKAGE_ACCESS_TOKEN }}
+        publish: false
+        packagesPath: dist-newstyle/sdist
+
