@@ -83,6 +83,8 @@ jobs:
     #   run: |
     #     RELEASE=$(echo ${{github.ref_name}} | sed 's/^v//')
     #     echo "RELEASE=${RELEASE}" >> "${GITHUB_ENV}"
+    - name: Checkout code
+      uses: actions/checkout@v4
     - name: Download artifacts
       id: download
       uses: actions/download-artifact@v4
