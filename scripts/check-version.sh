@@ -4,7 +4,7 @@ set -euo pipefail
 RELEASE="${1}"
 DOWNLOAD="${2}"
 
-CABAL_SCAFFOLD="${DOWNLOAD}/bins-Linux/cabal-scaffold"
+CABAL_SCAFFOLD="${DOWNLOAD}/cabal-scaffold-Linux/cabal-scaffold"
 chmod +x "${CABAL_SCAFFOLD}"
 
 VERSION=$("${CABAL_SCAFFOLD}" --numeric-version)
