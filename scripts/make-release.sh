@@ -16,14 +16,14 @@ set -x
 echo "[*] Compress binaries"
 
 MAC_GZ="cabal-scaffold-${RELEASE}-x86_64-macOS.tar.gz"
-MAC_BIN_DIR="${DL_DIR}/bins-macOS"
+MAC_BIN_DIR="${DL_DIR}/cabal-scaffold-macOS"
 pushd "${MAC_BIN_DIR}"
 chmod +x ./cabal-scaffold
 tar --use-compress-program="gzip -9" -cf  "${DEST_DIR}/${MAC_GZ}" ./cabal-scaffold
 popd
 
 LINUX_GZ="cabal-scaffold-${RELEASE}-x86_64-linux.tar.gz"
-LINUX_BIN_DIR="${DL_DIR}/bins-Linux"
+LINUX_BIN_DIR="${DL_DIR}/cabal-scaffold-Linux"
 pushd "${LINUX_BIN_DIR}"
 chmod +x ./cabal-scaffold
 tar --use-compress-program="gzip -9" -cf "${DEST_DIR}/${LINUX_GZ}" ./cabal-scaffold
