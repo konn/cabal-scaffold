@@ -68,7 +68,8 @@ appOptsP vinfo = Opt.info (p <**> longVersion vinfo <**> shortVersion vinfo <**>
   where
     theProgDesc = "cabal-scaffold Cabal project scaffold with Stackage Snapshots"
     p =
-      Opt.hsubparser defCommands <|> Opt.hsubparser (externalCommandProxy <> Opt.internal)
+      Opt.hsubparser defCommands
+        <|> Opt.hsubparser (externalCommandProxy <> Opt.internal)
     defCommands =
       mconcat
         [ Opt.command
