@@ -1,4 +1,5 @@
 {-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -39,7 +40,7 @@ import Data.Coerce (coerce)
 import Data.Functor ((<&>))
 import qualified Data.HashMap.Strict as HM
 import qualified Data.List as L
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, listToMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Time.Calendar
@@ -52,8 +53,9 @@ import Network.HTTP.Types (status304)
 import RIO (Hashable, MonadThrow, ReaderT (..), handle, throwIO, throwString, tshow)
 import RIO.Time (defaultTimeLocale, formatTime)
 import Text.ParserCombinators.ReadP (readP_to_S)
-import Text.Regex.Applicative.Text
-import qualified Text.Regex.Applicative.Text as RE
+import Text.Regex.Applicative
+import qualified Text.Regex.Applicative as RE
+import qualified Text.Regex.Applicative.Object as RE
 
 data PartialSnapshotName
   = PartialLTS (Maybe (Int, Maybe Int))
@@ -61,8 +63,14 @@ data PartialSnapshotName
   deriving (Eq, Ord, Generic)
   deriving anyclass (Hashable)
 
+matchText :: RE Char a -> T.Text -> Maybe a
+matchText re =
+  listToMaybe . RE.results . T.foldl' (flip RE.step) obj
+  where
+    !obj = RE.compile re
+
 parsePartialSnapsthot :: String -> Maybe PartialSnapshotName
-parsePartialSnapsthot = RE.match partialSnapshotRE . T.pack
+parsePartialSnapsthot = RE.match partialSnapshotRE
 
 instance Show PartialSnapshotName where
   showsPrec _ (PartialLTS mlts) =
@@ -83,13 +91,13 @@ instance Show PartialSnapshotName where
         mday
 
 instance FromJSONKey PartialSnapshotName where
-  fromJSONKey = J.FromJSONKeyTextParser (maybe (fail "partial name") pure . RE.match partialSnapshotRE)
+  fromJSONKey = J.FromJSONKeyTextParser (maybe (fail "partial name") pure . matchText partialSnapshotRE)
 
 instance FromJSON PartialSnapshotName where
   parseJSON =
     J.withText "snapshot name" $
       maybe (fail "lts-*-* or nightly-YYYY-mm-dd expected") pure
-        . RE.match partialSnapshotRE
+        . matchText partialSnapshotRE
   {-# INLINE parseJSON #-}
 
 instance ToJSON PartialSnapshotName where
@@ -98,6 +106,8 @@ instance ToJSON PartialSnapshotName where
 
 instance ToJSONKey PartialSnapshotName where
   toJSONKey = J.ToJSONKeyText (AK.fromText . tshow) (AE.text . tshow)
+
+type RE' = RE Char
 
 partialSnapshotRE :: RE' PartialSnapshotName
 partialSnapshotRE =
@@ -138,7 +148,7 @@ instance FromJSON SnapshotName where
   parseJSON =
     J.withText "snapshot name" $
       maybe (fail "lts-*-* or nightly-YYYY-mm-dd expected") pure
-        . RE.match snapshotRE
+        . matchText snapshotRE
 
 decimal :: (Integral a) => RE' a
 decimal =
@@ -155,7 +165,7 @@ dayRE :: RE Char Day
 dayRE =
   YearMonthDay <$> decimalN 4 <* RE.sym '-' <*> decimalN 2 <* RE.sym '-' <*> decimalN 2
 
-snapshotRE :: RE.RE' SnapshotName
+snapshotRE :: RE' SnapshotName
 snapshotRE =
   LTS
     <$ RE.string "lts-"
@@ -167,7 +177,7 @@ snapshotRE =
     <*> dayRE
 
 instance FromJSONKey SnapshotName where
-  fromJSONKey = J.FromJSONKeyTextParser (maybe (fail "name") pure . RE.match snapshotRE)
+  fromJSONKey = J.FromJSONKeyTextParser (maybe (fail "name") pure . matchText snapshotRE)
 
 newtype Snapshots = Snapshots {getSnapshots :: HM.HashMap PartialSnapshotName SnapshotName}
   deriving (Show, Eq, Ord, Generic)

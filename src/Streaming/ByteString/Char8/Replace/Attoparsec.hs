@@ -9,7 +9,7 @@ import qualified Streaming.ByteString.Char8 as Q
 import qualified Streaming.Prelude as S
 
 replaceAll ::
-  Monad m =>
+  (Monad m) =>
   Parser BS.ByteString ->
   Q.ByteStream m x ->
   Q.ByteStream m x

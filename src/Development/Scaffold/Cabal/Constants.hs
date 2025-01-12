@@ -10,12 +10,12 @@ import Path
 import Path.IO
 import RIO (MonadIO)
 
-getGlobalConfigFilePath :: MonadIO m => m (Path Abs File)
+getGlobalConfigFilePath :: (MonadIO m) => m (Path Abs File)
 getGlobalConfigFilePath =
   getXdgDir XdgConfig Nothing
     <&> (</> [relfile|cabal-scaffold.yaml|])
 
-getDataDir :: MonadIO m => m (Path Abs Dir)
+getDataDir :: (MonadIO m) => m (Path Abs Dir)
 getDataDir = getXdgDir XdgData (Just appDir)
 
 appDir :: Path Rel Dir

@@ -53,7 +53,6 @@ library
     Development.Scaffold.Cabal.Runner
     Development.Scaffold.Cabal.Snapshots
     Development.Scaffold.Cabal.Template
-    Development.Scaffold.Template
     Path.IO.Utils
     Streaming.ByteString.Char8.Replace.Attoparsec
 
@@ -66,9 +65,7 @@ library
     case-insensitive,
     conduit,
     containers,
-    dlist,
     exceptions,
-    foldable1-classes-compat,
     foldl,
     generic-lens,
     githash,
@@ -81,7 +78,7 @@ library
     path,
     path-io,
     project-template,
-    regex-applicative-text,
+    regex-applicative,
     replace-attoparsec,
     rio,
     rio-orphans,
@@ -89,7 +86,6 @@ library
     streaming,
     streaming-attoparsec,
     streaming-bytestring,
-    strict,
     template-haskell,
     text,
     time,
