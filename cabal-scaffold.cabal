@@ -53,7 +53,6 @@ library
     Development.Scaffold.Cabal.Runner
     Development.Scaffold.Cabal.Snapshots
     Development.Scaffold.Cabal.Template
-    Development.Scaffold.Template
     Path.IO.Utils
     Streaming.ByteString.Char8.Replace.Attoparsec
 
