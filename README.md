@@ -5,9 +5,12 @@ It automatically downloads `cabal.project.freeze` corresponding to the specified
 
 ## Usage
 
+You can call either `cabal-scaffold` directly or a subcommand `cabal scaffold` with recent versions of cabal-install with external commands support.
+
 ```sh
 Usage: cabal-scaffold new [--resolver ARG] [-p|--param KEY:VALUE] 
-                          [-w|--with-compiler COMPILER] PROJECT_NAME [TEMPLATE]
+                          [-w|--with-compiler COMPILER] PROJECT_NAME [TEMPLATE] 
+                          [--[no-]project-file]
 
   Create New Project
 
@@ -18,6 +21,9 @@ Available options:
                            The compiler to use in the project
   PROJECT_NAME             Project name
   TEMPLATE                 Template Name or path
+  --[no-]project-file      Whether to create cabal.project and freeze files or
+                           not (default: inferred from config; if none specified
+                           --project-file)
   -h,--help                Show this help text
 ```
 
@@ -109,3 +115,6 @@ Available options:
                            name (without extension) of input template path.
   -h,--help                Show this help text
 ```
+
+Note that you can include another `.hsfiles` inside your hsfiles (with escape).
+This enables you to include template file for monorepo.
