@@ -86,7 +86,6 @@ library
     streaming,
     streaming-attoparsec,
     streaming-bytestring,
-    strict,
     template-haskell,
     text,
     time,
