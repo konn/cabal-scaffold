@@ -95,7 +95,7 @@ appOptsP vinfo = Opt.info (p <**> longVersion vinfo <**> shortVersion vinfo <**>
           "scaffold"
           ( Opt.info
               (Opt.hsubparser (mconcat defCommands))
-              $ Opt.progDesc "Wrapper command to work with cabal's external command system"
+              $ Opt.progDesc "Cabal project scaffold with Stackage Snapshots"
           )
       ]
 
