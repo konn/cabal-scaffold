@@ -272,7 +272,7 @@ snapshotYamlUrl (Nightly (YearMonthDay yyyy mm dd)) =
 snapshotYamlUrl (LTS major minor) =
   "https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/" <> show major <> "/" <> show minor <> ".yaml"
 
-data RawSnapshotGHC = RawSnapshotGHC {compiler :: String}
+newtype RawSnapshotGHC = RawSnapshotGHC {compiler :: String}
   deriving (Show, Eq, Ord, Generic)
 
 instance FromJSON RawSnapshotGHC where

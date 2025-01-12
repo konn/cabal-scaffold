@@ -51,7 +51,7 @@ data ProjectOptions = ProjectOptions
   { projectName :: T.Text
   , template :: Maybe String
   , resolver :: PartialSnapshotName
-  , noProjectFile :: Maybe Bool
+  , projectFile :: Maybe Bool
   , additionalParams :: J.Object
   , withCompiler :: Maybe Text
   }
@@ -89,25 +89,25 @@ projectOptionsP = do
       Opt.strArgument $
         Opt.metavar "TEMPLATE"
           <> Opt.help "Template Name or path"
-  noProjectFile <-
+  projectFile <-
     Opt.flag'
-      (Just True)
+      (Just False)
       ( Opt.long "no-project-file"
-          <> Opt.help "Create cabal.project and freeze files (default)"
+          <> Opt.help "Do not create cabal.project and freeze files"
           <> Opt.internal
       )
       <|> Opt.flag
         Nothing
-        (Just False)
+        (Just True)
         ( Opt.long "project-file"
-            <> Opt.help "Do not create cabal.project and freeze files"
+            <> Opt.help "Create cabal.project and freeze files (default)"
             <> Opt.internal
         )
       <|> ( empty
               <* Opt.flag'
-                Nothing
+                True
                 ( Opt.long "[no-]project-file"
-                    <> Opt.help "Whether to create cabal.project and freeze files or not (default: --project-file)"
+                    <> Opt.help "Whether to create cabal.project and freeze files or not (default: inferred from config; if none specified --project-file)"
                 )
           )
   pure ProjectOptions {..}
@@ -128,8 +128,8 @@ newProject ProjectOptions {..} = do
     cfg <- view #config
     createDirIfMissing True dest
     let genProject =
-          maybe True not $
-            noProjectFile <|> cfg.defaults.noProject
+          fromMaybe True $
+            projectFile <|> cfg.defaults.projectFile
     mver <-
       if genProject
         then do

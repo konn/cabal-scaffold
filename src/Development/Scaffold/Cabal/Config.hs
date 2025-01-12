@@ -31,10 +31,20 @@ data ScaffoldConfig = ScaffoldConfig
 data Defaults = Defaults
   { template :: Maybe String
   , snapshot :: PartialSnapshotName
-  , noProject :: !(Maybe Bool)
+  , projectFile :: !(Maybe Bool)
   }
   deriving (Show, Eq, Ord, Generic)
-  deriving anyclass (FromJSON, ToJSON)
+
+-- deriving anyclass (FromJSON, ToJSON)
+
+defaultsOpts :: J.Options
+defaultsOpts = J.defaultOptions {J.omitNothingFields = True, J.fieldLabelModifier = J.camelTo2 '-'}
+
+instance FromJSON Defaults where
+  parseJSON = J.genericParseJSON defaultsOpts
+
+instance ToJSON Defaults where
+  toJSON = J.genericToJSON defaultsOpts
 
 data Params = Params
   { authorName :: T.Text

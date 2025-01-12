@@ -1,6 +1,6 @@
 cabal-version: 3.4
 name: cabal-scaffold
-version: 0.1.0.0
+version: 0.2.0.0
 description: Please see the README on GitHub at <https://github.com/konn/cabal-scaffold#readme>
 homepage: https://github.com/konn/cabal-scaffold#readme
 bug-reports: https://github.com/konn/cabal-scaffold/issues
