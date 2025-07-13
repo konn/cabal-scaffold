@@ -1,4 +1,5 @@
 {-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -30,6 +31,7 @@ import Data.Generics.Labels ()
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Development.Scaffold.Cabal.Config
+import Development.Scaffold.Cabal.Constants (getDataDir)
 import Development.Scaffold.Cabal.Runner
 import Development.Scaffold.Cabal.Snapshots
 import Development.Scaffold.Cabal.Template
@@ -37,7 +39,7 @@ import Network.HTTP.Client.Conduit (Response (..), newManager)
 import Network.HTTP.Conduit (http)
 import qualified Options.Applicative as Opt
 import Path
-import Path.IO (createDirIfMissing, findExecutable, makeRelativeToCurrentDir, removeDirRecur, resolveDir')
+import Path.IO (createDirIfMissing, doesDirExist, findExecutable, makeRelativeToCurrentDir, removeDirRecur, resolveDir')
 import Path.IO.Utils (makeSureEmpty)
 import RIO
 import RIO.Process (proc, runProcess, withProcessContextNoLogging, withWorkingDir)
@@ -123,6 +125,10 @@ newProject ProjectOptions {..} = do
   dest <- resolveDir' $ T.unpack projectName
   makeSureEmpty dest
   dir <- makeRelativeToCurrentDir dest
+  dataDir <- getDataDir
+  dataThere <- doesDirExist dataDir
+  unless dataThere do
+    logWarn "No data directory found."
   logInfo $ "Creating project to " <> fromString (fromRelDir dir)
   handleAny (\exc -> removeDirRecur dest >> throwIO exc) $ do
     cfg <- view #config
@@ -215,7 +221,7 @@ newProject ProjectOptions {..} = do
             liftIO $
               T.writeFile
                 (fromAbsFile $ dest </> [relfile|cabal.project|])
-                "packages: **/*.cabal"
+                "packages: **.cabal"
         logInfo "Project Created."
 
 rewriteCompiler :: Text -> A.Parser BS.ByteString

@@ -6,7 +6,7 @@ homepage: https://github.com/konn/cabal-scaffold#readme
 bug-reports: https://github.com/konn/cabal-scaffold/issues
 author: Hiromi Ishii
 maintainer: konn.jinro_at_gmail.com
-copyright: 2023 (c) Hiromi Ishii
+copyright: 2023- present (c) Hiromi Ishii
 license: BSD-3-Clause
 license-file: LICENSE
 build-type: Simple
@@ -53,6 +53,7 @@ library
     Development.Scaffold.Cabal.Runner
     Development.Scaffold.Cabal.Snapshots
     Development.Scaffold.Cabal.Template
+    Development.Scaffold.Cabal.Template.Presets
     Path.IO.Utils
     Streaming.ByteString.Char8.Replace.Attoparsec
 
@@ -66,6 +67,7 @@ library
     conduit,
     containers,
     exceptions,
+    file-embed,
     foldl,
     generic-lens,
     githash,
