@@ -15,6 +15,7 @@ extra-doc-files:
   README.md
 
 data-dir: data
+data-files: *.hsfiles
 
 source-repository head
   type: git
