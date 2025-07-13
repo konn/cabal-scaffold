@@ -8,7 +8,7 @@ module Development.Scaffold.Cabal.App (
   appOptsP,
 ) where
 
-import Control.Applicative ((<**>))
+import Control.Applicative ((<**>), (<|>))
 import Control.Monad ((<=<))
 import Data.Version (Version, showVersion)
 import Development.Scaffold.Cabal
@@ -64,40 +64,41 @@ longVersion vinfo =
         Right gi -> " (commit: " <> giHash gi <> ")"
 
 appOptsP :: VersionInfo -> Opt.ParserInfo Cmd
-appOptsP vinfo = Opt.info (p <**> longVersion vinfo <**> shortVersion vinfo <**> Opt.helper) $ Opt.progDesc "Cabal project scaffold with Stackage Snapshots"
+appOptsP vinfo = Opt.info (p <**> longVersion vinfo <**> shortVersion vinfo <**> Opt.helper) $ Opt.progDesc theProgDesc
   where
+    theProgDesc = "cabal-scaffold Cabal project scaffold with Stackage Snapshots"
     p =
-      Opt.hsubparser $
-        mconcat $
-          defCommands <> externalCommandProxy
+      Opt.hsubparser defCommands
+        <|> Opt.hsubparser (externalCommandProxy <> Opt.internal)
     defCommands =
-      [ Opt.command
-          "new"
-          $ Opt.info (New <$> projectOptionsP)
-          $ Opt.progDesc "Create New Project"
-      , Opt.command
-          "expand"
-          $ Opt.info (Expand <$> expandOptionsP)
-          $ Opt.progDesc "Search and expand the template to the specified directory"
-      , Opt.command
-          "import"
-          $ Opt.info (Import <$> importOptionsP)
-          $ Opt.progDesc "Import directory or .hsfiles as a new preset template"
-      , Opt.command "list" $
-          Opt.info (pure List) $
-            Opt.progDesc "List all the available templates"
-      , Opt.command "ls" $
-          Opt.info (pure List) $
-            Opt.progDesc "Alias for list"
-      ]
+      mconcat
+        [ Opt.command
+            "new"
+            $ Opt.info (New <$> projectOptionsP)
+            $ Opt.progDesc "Create New Project"
+        , Opt.command
+            "expand"
+            $ Opt.info (Expand <$> expandOptionsP)
+            $ Opt.progDesc "Search and expand the template to the specified directory"
+        , Opt.command
+            "import"
+            $ Opt.info (Import <$> importOptionsP)
+            $ Opt.progDesc "Import directory or .hsfiles as a new preset template"
+        , Opt.command "list" $
+            Opt.info (pure List) $
+              Opt.progDesc "List all the available templates"
+        , Opt.command "ls" $
+            Opt.info (pure List) $
+              Opt.progDesc "Alias for list"
+        ]
+
     externalCommandProxy =
-      [ Opt.command
-          "scaffold"
-          ( Opt.info
-              (Opt.hsubparser (mconcat defCommands))
-              $ Opt.progDesc "Wrapper command to work with cabal's external command system"
-          )
-      ]
+      Opt.command
+        "scaffold"
+        ( Opt.info
+            (Opt.hsubparser defCommands)
+            $ Opt.progDesc theProgDesc
+        )
 
 defaultMain :: VersionInfo -> IO ()
 defaultMain = defaultMainWith <=< Opt.customExecParser (Opt.prefs Opt.subparserInline) . appOptsP

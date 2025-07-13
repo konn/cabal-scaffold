@@ -118,3 +118,16 @@ Available options:
 
 Note that you can include another `.hsfiles` inside your hsfiles (with escape).
 This enables you to include template file for monorepo.
+
+### Built-in Templates
+
+If you are using `cabal-scaffold` for the first time, you can either call `cabal scaffold populate` or just run `cabal scaffold new`.
+This will populate `${XDG_DATA_HOME}/cabal-scaffold` with the following built-in templates:
+
+1. `default`: simple hpack-based repository.
+2. `monorepo`: rather complex monorepo with the initial repository with the same name as the monorepo itself. This includes my goto presets:
+     + Depends on cabal-gild for cabal formatting.
+     + VSCode configuration files
+     + GitHub Action definitions
+
+You can modify and redefine them with `cabal scaffold expand` and `import` subcommands.
